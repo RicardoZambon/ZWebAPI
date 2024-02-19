@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net6.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<Authors>Ricardo Zambon</Authors>
+		<Description>ZWebAPI is a library that brings additional functionalities for web API projects.</Description>
+		<Copyright>Ricardo Zambon</Copyright>
+		<PackageProjectUrl>https://github.com/RicardoZambon/ZSecurity</PackageProjectUrl>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="AutoMapper" Version="13.0.1" />
+		<PackageReference Include="ZDatabase" Version="1.2.0" />
+		<PackageReference Include="ZSecurity" Version="1.0.2" />
+	</ItemGroup>
+
+</Project>
