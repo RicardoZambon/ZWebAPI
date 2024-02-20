@@ -13,11 +13,12 @@ using ZWebAPI.Helpers;
 using ZWebAPI.Interfaces;
 using ZWebAPI.Models.Audit.OperationHistory;
 using ZWebAPI.Models.Audit.ServiceHistory;
+using ZWebAPI.Services.Interfaces;
 
 namespace ZWebAPI.Services
 {
     /// <inheritdoc />
-    public class AuditServiceDefault<TServicesHistory, TOperationsHistory, TUsers, TUsersKey>
+    public class AuditServiceDefault<TServicesHistory, TOperationsHistory, TUsers, TUsersKey> : IAuditService<TUsers, TUsersKey>
         where TServicesHistory : ServicesHistory<TServicesHistory, TOperationsHistory, TUsers, TUsersKey>, new()
         where TOperationsHistory : OperationsHistory<TServicesHistory, TOperationsHistory, TUsers, TUsersKey>, new()
         where TUsers : class
@@ -34,7 +35,7 @@ namespace ZWebAPI.Services
         protected TServicesHistory? CurrentServiceHistory { get; private set; } = null;
         #endregion
 
-        #region Constructor        
+        #region Constructor
         /// <summary>
         /// Initializes a new instance of the <see cref="AuditServiceDefault{TServicesHistory, TOperationsHistory, TUsers, TUsersKey}"/> class.
         /// </summary>
