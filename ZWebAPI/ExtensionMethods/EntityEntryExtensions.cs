@@ -7,7 +7,7 @@ namespace ZWebAPI.ExtensionMethods
     /// </summary>
     internal static class EntityEntryExtensions
     {
-        // <summary>
+        /// <summary>
         /// Determines whether the value was modified.
         /// </summary>
         /// <param name="property">The property.</param>
