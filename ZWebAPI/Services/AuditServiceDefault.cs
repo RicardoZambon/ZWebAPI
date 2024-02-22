@@ -1,11 +1,13 @@
 ﻿using AutoMapper;
 using AutoMapper.QueryableExtensions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System.Reflection;
 using ZDatabase.Entities;
 using ZDatabase.Entities.Audit;
 using ZDatabase.Entries;
 using ZDatabase.Exceptions;
+using ZDatabase.Interfaces;
 using ZDatabase.Repositories.Audit.Interfaces;
 using ZSecurity.Services;
 using ZWebAPI.ExtensionMethods;
@@ -25,6 +27,7 @@ namespace ZWebAPI.Services
         where TUsersKey : struct
     {
         #region Variables
+        private readonly IDbContext dbContext;
         private readonly IMapper mapper;
         private readonly IOperationsHistoryRepository<TServicesHistory, TOperationsHistory, TUsers, TUsersKey> operationsHistoryRepository;
         private readonly ISecurityHandler securityHandler;
@@ -39,16 +42,19 @@ namespace ZWebAPI.Services
         /// <summary>
         /// Initializes a new instance of the <see cref="AuditServiceDefault{TServicesHistory, TOperationsHistory, TUsers, TUsersKey}"/> class.
         /// </summary>
+        /// <param name="dbContext">The <see cref="IDbContext"/> instance.</param>
         /// <param name="mapper">The <see cref="AutoMapper.IMapper"/> instance.</param>
         /// <param name="operationsHistoryRepository">The <see cref="ZDatabase.Repositories.Audit.Interfaces.IOperationsHistoryRepository{TServicesHistory, TOperationsHistory, TUsers, TUsersKey}"/> instance.</param>
         /// <param name="securityHandler">The <see cref="ZDatabase.Services.Interfaces.IAuditHandler"/> instance.</param>
         /// <param name="servicesHistoryRepository">The <see cref="ZDatabase.Repositories.Audit.Interfaces.IServicesHistoryRepository{TServicesHistory, TOperationsHistory, TUsers, TUsersKey}"/> instance.</param>
         public AuditServiceDefault(
+            IDbContext dbContext,
             IMapper mapper,
             IOperationsHistoryRepository<TServicesHistory, TOperationsHistory, TUsers, TUsersKey> operationsHistoryRepository,
             ISecurityHandler securityHandler,
             IServicesHistoryRepository<TServicesHistory, TOperationsHistory, TUsers, TUsersKey> servicesHistoryRepository)
         {
+            this.dbContext = dbContext;
             this.mapper = mapper;
             this.operationsHistoryRepository = operationsHistoryRepository;
             this.securityHandler = securityHandler;
@@ -76,7 +82,7 @@ namespace ZWebAPI.Services
         public async Task BeginNewServiceHistoryAsync()
         {
             MethodBase method = StackTraceHelper.GetMethodImplementingActionMethodAttribute()
-                ?? throw new Exception("Could not find action method.");
+                ?? throw new Exception("Could not find any previous method in StackTrace implementing ActionMethodAttribute.");
 
             string? serviceName = method.DeclaringType?.GetInterfaces().FirstOrDefault()?.Name;
             string? methodName = method.Name;
@@ -97,10 +103,29 @@ namespace ZWebAPI.Services
         }
 
         /// <inheritdoc />
-        public IQueryable<OperationsHistoryListModel> ListEntityOperationsHistory<TEntity>(long serviceHistoryID, IListParameters parameters)
+        public async Task<IQueryable<OperationsHistoryListModel>> ListEntityOperationsHistoryAsync<TEntity>(long entityID, long serviceHistoryID, IListParameters parameters)
             where TEntity : AuditableEntity<TUsers, TUsersKey>
         {
-            return operationsHistoryRepository.ListOperations(serviceHistoryID)
+            if (await dbContext.FindAsync<TEntity>(entityID) is not TEntity entity)
+            {
+                throw new EntityNotFoundException<TEntity>(entityID);
+            }
+
+            if (await dbContext.FindAsync<TServicesHistory>(serviceHistoryID) is not TServicesHistory serviceHistory)
+            {
+                throw new EntityNotFoundException<TServicesHistory>(serviceHistoryID);
+            }
+
+            IQueryable<TOperationsHistory> operations = operationsHistoryRepository.ListOperations(serviceHistoryID);
+
+            // The returned operations must contain the entity identifier and the table name.
+            EntityEntry<TEntity> entry = dbContext.Entry(entity);
+            if (!await operations.AnyAsync(x => EF.Functions.Like(x.TableName ?? string.Empty, entry.Metadata.GetTableName() ?? string.Empty) && x.EntityID == entityID))
+            {
+                return Enumerable.Empty<OperationsHistoryListModel>().AsQueryable();
+            }
+
+            return operations
                 .GetRange(parameters)
                 .ProjectTo<OperationsHistoryListModel>(mapper.ConfigurationProvider);
         }

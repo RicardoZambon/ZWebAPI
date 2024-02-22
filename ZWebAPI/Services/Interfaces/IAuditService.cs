@@ -20,7 +20,8 @@ namespace ZWebAPI.Services.Interfaces
         /// </summary>
         /// <typeparam name="TEntity">The type of the entity.</typeparam>
         /// <param name="entityEntry">The entity entry.</param>
-        Task AddOperationHistoryAsync<TEntity>(EntityEntry<TEntity> entityEntry) where TEntity : AuditableEntity<TUsers, TUsersKey>;
+        Task AddOperationHistoryAsync<TEntity>(EntityEntry<TEntity> entityEntry)
+            where TEntity : AuditableEntity<TUsers, TUsersKey>;
 
         /// <summary>
         /// Begins a new service history asynchronous.
@@ -34,7 +35,8 @@ namespace ZWebAPI.Services.Interfaces
         /// <param name="serviceHistoryID">The service history identifier.</param>
         /// <param name="parameters">The parameters.</param>
         /// <returns>Query with all operations history from the service history identifier.</returns>
-        IQueryable<OperationsHistoryListModel> ListEntityOperationsHistory<TEntity>(long serviceHistoryID, IListParameters parameters) where TEntity : AuditableEntity<TUsers, TUsersKey>;
+        Task<IQueryable<OperationsHistoryListModel>> ListEntityOperationsHistoryAsync<TEntity>(long entityID, long serviceHistoryID, IListParameters parameters)
+            where TEntity : AuditableEntity<TUsers, TUsersKey>;
 
         /// <summary>
         /// Lists the services history from an entity identifier asynchronous.
@@ -43,6 +45,7 @@ namespace ZWebAPI.Services.Interfaces
         /// <param name="entityID">The entity identifier.</param>
         /// <param name="parameters">The parameters.</param>
         /// <returns>Query with all services history from the entity identifier.</returns>
-        Task<IQueryable<ServicesHistoryListModel>> ListEntityServicesHistoryAsync<TEntity>(long entityID, IListParameters parameters) where TEntity : AuditableEntity<TUsers, TUsersKey>;
+        Task<IQueryable<ServicesHistoryListModel>> ListEntityServicesHistoryAsync<TEntity>(long entityID, IListParameters parameters)
+            where TEntity : AuditableEntity<TUsers, TUsersKey>;
     }
 }
