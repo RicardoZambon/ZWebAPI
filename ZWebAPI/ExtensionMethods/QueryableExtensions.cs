@@ -5,6 +5,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using ZWebAPI.Enums;
 using ZWebAPI.Interfaces;
+using ZWebAPI.Models.Catalog;
 
 namespace ZWebAPI.ExtensionMethods
 {
@@ -13,7 +14,40 @@ namespace ZWebAPI.ExtensionMethods
     /// </summary>
     public static class QueryableExtensions
     {
-        #region Public methods        
+        #region Public methods
+        /// <summary>
+        /// Gets the catalog result model fom a query.
+        /// </summary>
+        /// <typeparam name="TKey">The type of the key.</typeparam>
+        /// <param name="query">The query.</param>
+        /// <param name="parameters">The parameters.</param>
+        /// <returns>The catalog result model.</returns>
+        public static CatalogResultModel<TKey> GetCatalog<TKey>(this IQueryable<KeyValuePair<TKey, string>> query, ICatalogParameters parameters)
+            where TKey : struct
+        {
+            CatalogResultModel<TKey> result = new();
+
+            if (!string.IsNullOrEmpty(parameters.Criteria))
+            {
+                query = query.Where(x => EF.Functions.Like(x.Value.ToLower(), $"%{parameters.Criteria.ToLower()}%"));
+            }
+
+            if (parameters.MaxResults > 0 && query.Count() > parameters.MaxResults)
+            {
+                result.ShouldUseCriteria = true;
+            }
+            else
+            {
+                result.Entries = query
+                    .Select(x => new CatalogEntryModel<TKey>()
+                    {
+                        Display = x.Value,
+                        Value = x.Key,
+                    });
+            }
+            return result;
+        }
+
         /// <summary>
         /// Get a range from a query.
         /// </summary>
@@ -62,6 +96,7 @@ namespace ZWebAPI.ExtensionMethods
         /// <returns>Return the query filtered.</returns>
         /// <exception cref="System.Exception">The property {typeProperty} was not found in the type {(filterProperty?.PropertyType ?? typeof(TEntity)).Name}.</exception>
         public static IQueryable<TEntity> TryFilter<TEntity>(this IQueryable<TEntity> query, IListParameters parameters, string property, string parameterName, FilterTypes filterType)
+            where TEntity : class
         {
             PropertyInfo? filterProperty = null;
 
@@ -109,6 +144,25 @@ namespace ZWebAPI.ExtensionMethods
                 }
             }
             return query;
+        }
+
+        /// <summary>
+        /// Converts a query to key value pairs.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the entity.</typeparam>
+        /// <typeparam name="TKey">The type of the key.</typeparam>
+        /// <param name="query">The query.</param>
+        /// <param name="keySelector">The key selector.</param>
+        /// <param name="valueSelector">The value selector.</param>
+        /// <returns>The query converted to key value pairs.</returns>
+        public static IQueryable<KeyValuePair<TKey, string>> ConvertToKeyValuePairs<TEntity, TKey>(this IQueryable<TEntity> query, Expression<Func<TEntity, TKey>> keySelector, Expression<Func<TEntity, string>> valueSelector)
+            where TEntity : class
+            where TKey : struct
+        {
+            return query.Select(x => new KeyValuePair<TKey, string>(
+                keySelector.Compile().Invoke(x),
+                valueSelector.Compile().Invoke(x)
+            ));
         }
         #endregion
 

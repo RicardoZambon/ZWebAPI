@@ -25,7 +25,7 @@ namespace ZWebAPI.Services
         protected abstract TUserKey DefaultServiceUserID { get; }
         #endregion
 
-        #region Constructor
+        #region Constructors
         #endregion
 
         #region Public methods
