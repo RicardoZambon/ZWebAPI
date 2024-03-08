@@ -8,12 +8,7 @@ namespace ZWebAPI.Models
     /// <seealso cref="ZWebAPI.Interfaces.ISummaryParameters" />
     public class SummaryParametersModel : ISummaryParameters
     {
-        /// <summary>
-        /// Gets or sets the filters.
-        /// </summary>
-        /// <value>
-        /// The filters.
-        /// </value>
+        /// <inheritdoc />
         public IDictionary<string, object>? Filters { get; set; } = new Dictionary<string, object>(StringComparer.InvariantCultureIgnoreCase);
     }
 }
