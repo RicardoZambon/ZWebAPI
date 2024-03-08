@@ -96,7 +96,6 @@ namespace ZWebAPI.ExtensionMethods
         /// <returns>Return the query filtered.</returns>
         /// <exception cref="System.Exception">The property {typeProperty} was not found in the type {(filterProperty?.PropertyType ?? typeof(TEntity)).Name}.</exception>
         public static IQueryable<TEntity> TryFilter<TEntity>(this IQueryable<TEntity> query, IListParameters parameters, string property, string parameterName, FilterTypes filterType)
-            where TEntity : class
         {
             PropertyInfo? filterProperty = null;
 
