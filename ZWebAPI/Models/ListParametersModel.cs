@@ -9,28 +9,13 @@ namespace ZWebAPI.Models
     /// <seealso cref="ZWebAPI.Interfaces.IListParameters" />
     public class ListParametersModel : SummaryParametersModel, IListParameters
     {
-        /// <summary>
-        /// Gets or sets the start row.
-        /// </summary>
-        /// <value>
-        /// The start row.
-        /// </value>
-        public int StartRow { get; set; }
-
-        /// <summary>
-        /// Gets or sets the end row.
-        /// </summary>
-        /// <value>
-        /// The end row.
-        /// </value>
+        /// <inheritdoc />
         public int EndRow { get; set; }
 
-        /// <summary>
-        /// Gets or sets the sort.
-        /// </summary>
-        /// <value>
-        /// The sort.
-        /// </value>
+        /// <inheritdoc />
         public IDictionary<string, string> Sort { get; set; } = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
+
+        /// <inheritdoc />
+        public int StartRow { get; set; }
     }
 }
