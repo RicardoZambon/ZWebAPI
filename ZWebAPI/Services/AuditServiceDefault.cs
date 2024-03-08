@@ -38,7 +38,7 @@ namespace ZWebAPI.Services
         protected TServicesHistory? CurrentServiceHistory { get; private set; } = null;
         #endregion
 
-        #region Constructor
+        #region Constructors
         /// <summary>
         /// Initializes a new instance of the <see cref="AuditServiceDefault{TServicesHistory, TOperationsHistory, TUsers, TUsersKey}"/> class.
         /// </summary>
