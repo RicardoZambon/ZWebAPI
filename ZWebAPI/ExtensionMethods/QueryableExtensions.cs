@@ -163,7 +163,7 @@ namespace ZWebAPI.ExtensionMethods
 
             if (GetProperty(parameter, propertyName) is MemberExpression property)
             {
-                ConstantExpression value = Expression.Constant(propertyValue);
+                ConstantExpression value = Expression.Constant(Convert.ChangeType(propertyValue, property.Type));
 
                 return BuildLambda<TEntity>(Expression.Equal(property, value), parameter);
             }
@@ -176,7 +176,7 @@ namespace ZWebAPI.ExtensionMethods
 
             if (GetProperty(parameter, propertyName) is MemberExpression property)
             {
-                ConstantExpression value = Expression.Constant(propertyValue);
+                ConstantExpression value = Expression.Constant(Convert.ChangeType(propertyValue, property.Type));
 
                 return BuildLambda<TEntity>(Expression.GreaterThan(property, value), parameter);
             }
@@ -189,7 +189,7 @@ namespace ZWebAPI.ExtensionMethods
 
             if (GetProperty(parameter, propertyName) is MemberExpression property)
             {
-                ConstantExpression value = Expression.Constant(propertyValue);
+                ConstantExpression value = Expression.Constant(Convert.ChangeType(propertyValue, property.Type));
 
                 return BuildLambda<TEntity>(Expression.GreaterThanOrEqual(property, value), parameter);
             }
@@ -205,7 +205,7 @@ namespace ZWebAPI.ExtensionMethods
 
             if (GetProperty(parameter, propertyName) is MemberExpression property)
             {
-                ConstantExpression value = Expression.Constant(propertyValue);
+                ConstantExpression value = Expression.Constant(Convert.ChangeType(propertyValue, property.Type));
 
                 return BuildLambda<TEntity>(Expression.LessThan(property, value), parameter);
             }
@@ -218,7 +218,7 @@ namespace ZWebAPI.ExtensionMethods
 
             if (GetProperty(parameter, propertyName) is MemberExpression property)
             {
-                ConstantExpression value = Expression.Constant(propertyValue);
+                ConstantExpression value = Expression.Constant(Convert.ChangeType(propertyValue, property.Type));
 
                 return BuildLambda<TEntity>(Expression.LessThanOrEqual(property, value), parameter);
             }
