@@ -6,7 +6,7 @@ namespace ZWebAPI.ExtensionMethods
     /// <summary>
     /// Extension methods for <see cref="ZWebAPI.Interfaces.ISummaryParameters"/>.
     /// </summary>
-    internal static class SummaryParametersExtensions
+    public static class SummaryParametersExtensions
     {
         /// <summary>
         /// Determines whether the summary parameters has filters.

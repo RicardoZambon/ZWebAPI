@@ -89,7 +89,7 @@ namespace ZWebAPI.ExtensionMethods
         /// <param name="property">The property.</param>
         /// <param name="filterType">Type of the filter.</param>
         /// <returns>Return the query filtered.</returns>
-        public static IQueryable<TEntity> TryFilter<TEntity>(this IQueryable<TEntity> query, IListParameters parameters, string property, FilterTypes filterType)
+        public static IQueryable<TEntity> TryFilter<TEntity>(this IQueryable<TEntity> query, ISummaryParameters parameters, string property, FilterTypes filterType)
         {
             return query.TryFilter(parameters, property, property, filterType);
         }
@@ -105,7 +105,7 @@ namespace ZWebAPI.ExtensionMethods
         /// <param name="filterType">Type of the filter.</param>
         /// <returns>Return the query filtered.</returns>
         /// <exception cref="System.Exception">The property {typeProperty} was not found in the type {(filterProperty?.PropertyType ?? typeof(TEntity)).Name}.</exception>
-        public static IQueryable<TEntity> TryFilter<TEntity>(this IQueryable<TEntity> query, IListParameters parameters, string property, string parameterName, FilterTypes filterType)
+        public static IQueryable<TEntity> TryFilter<TEntity>(this IQueryable<TEntity> query, ISummaryParameters parameters, string property, string parameterName, FilterTypes filterType)
         {
             PropertyInfo? filterProperty = null;
 
