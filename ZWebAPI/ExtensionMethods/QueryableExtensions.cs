@@ -120,37 +120,29 @@ namespace ZWebAPI.ExtensionMethods
                 }
             }
 
-            if (parameters.HasFilter(parameterName) && filterProperty != null)
+            if (parameters.HasFilter(parameterName) && filterProperty is not null)
             {
                 object? filterValue = parameters.GetFilterValue(parameterName, filterProperty.PropertyType);
 
-                Expression<Func<TEntity, bool>>? where = null;
-                switch (filterType)
-                {
-                    case FilterTypes.Like:
-                        where = BuildLikeExpression<TEntity>(property, filterValue);
-                        break;
-                    case FilterTypes.Equals:
-                        where = BuildEqualsExpression<TEntity>(property, filterValue);
-                        break;
-                    case FilterTypes.LessThan:
-                        where = BuildLessThanExpression<TEntity>(property, filterValue);
-                        break;
-                    case FilterTypes.LessThanOrEqual:
-                        where = BuildLessThanOrEqualExpression<TEntity>(property, filterValue);
-                        break;
-                    case FilterTypes.GreaterThan:
-                        where = BuildGreaterThanExpression<TEntity>(property, filterValue);
-                        break;
-                    case FilterTypes.GreatherThanOrEqual:
-                        where = BuildGreaterThanOrEqualExpression<TEntity>(property, filterValue);
-                        break;
-                }
+                return RunFilter(query, property, filterValue, filterType);
+            }
+            return query;
+        }
 
-                if (where != null)
-                {
-                    return query.Where(where);
-                }
+        /// <summary>
+        /// Tries to filter the query with arbitrary value.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the entity.</typeparam>
+        /// <param name="query">The query.</param>
+        /// <param name="property">The property.</param>
+        /// <param name="filterValue">The filter value.</param>
+        /// <param name="filterType">Type of the filter.</param>
+        /// <returns>Return the query filtered.</returns>
+        public static IQueryable<TEntity> TryFilterWithValue<TEntity>(this IQueryable<TEntity> query, string property, object? filterValue, FilterTypes filterType)
+        {
+            if (filterValue is not null)
+            {
+                return RunFilter(query, property, filterValue, filterType);
             }
             return query;
         }
@@ -267,6 +259,39 @@ namespace ZWebAPI.ExtensionMethods
             }
 
             return expression;
+        }
+
+        private static IQueryable<TEntity> RunFilter<TEntity>(this IQueryable<TEntity> query, string property, object? filterValue, FilterTypes filterType)
+        {
+            Expression<Func<TEntity, bool>>? where = null;
+            switch (filterType)
+            {
+                case FilterTypes.Like:
+                    where = BuildLikeExpression<TEntity>(property, filterValue);
+                    break;
+                case FilterTypes.Equals:
+                    where = BuildEqualsExpression<TEntity>(property, filterValue);
+                    break;
+                case FilterTypes.LessThan:
+                    where = BuildLessThanExpression<TEntity>(property, filterValue);
+                    break;
+                case FilterTypes.LessThanOrEqual:
+                    where = BuildLessThanOrEqualExpression<TEntity>(property, filterValue);
+                    break;
+                case FilterTypes.GreaterThan:
+                    where = BuildGreaterThanExpression<TEntity>(property, filterValue);
+                    break;
+                case FilterTypes.GreatherThanOrEqual:
+                    where = BuildGreaterThanOrEqualExpression<TEntity>(property, filterValue);
+                    break;
+            }
+
+            if (where is not null)
+            {
+                return query.Where(where);
+            }
+
+            return query;
         }
         #endregion
     }
