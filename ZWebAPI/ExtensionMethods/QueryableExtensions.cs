@@ -22,24 +22,40 @@ namespace ZWebAPI.ExtensionMethods
         /// <typeparam name="TKey">The type of the key.</typeparam>
         /// <param name="query">The query.</param>
         /// <param name="parameters">The parameters.</param>
-        /// <param name="keySelector">The key selector.</param>
         /// <param name="valueSelector">The value selector.</param>
+        /// <param name="displaySelector">The display selector.</param>
         /// <returns>The catalog result model.</returns>
-        public static CatalogResultModel<TKey> GetCatalog<TEntity, TKey>(this IQueryable<TEntity> query, ICatalogParameters parameters, Expression<Func<TEntity, TKey>> keySelector, Expression<Func<TEntity, string?>> valueSelector)
+        public static CatalogResultModel<TKey> GetCatalog<TEntity, TKey>(this IQueryable<TEntity> query, ICatalogParameters parameters, Expression<Func<TEntity, TKey>> valueSelector, Expression<Func<TEntity, string?>> displaySelector)
             where TEntity : class
             where TKey : struct
         {
-            CatalogResultModel<TKey> result = new();
+            // Builds the SELECT query dynamically.
+            ParameterExpression parameter = Expression.Parameter(typeof(TEntity), "x");
 
-            IQueryable<KeyValuePair<TKey, string?>> catalogQuery = query.ConvertToKeyValuePairs(keySelector, valueSelector);
+            InvocationExpression valueExpression = Expression.Invoke(valueSelector, parameter);
+            InvocationExpression displayExpression = Expression.Invoke(displaySelector, parameter);
 
-            if (!string.IsNullOrEmpty(parameters.Criteria))
+            NewExpression newExpression = Expression.New(typeof(CatalogEntryModel<TKey>));
+            List<MemberBinding> bindings = new() {
+                Expression.Bind(typeof(CatalogEntryModel<TKey>).GetProperty(nameof(CatalogEntryModel<TKey>.Value))!, valueExpression),
+                Expression.Bind(typeof(CatalogEntryModel<TKey>).GetProperty(nameof(CatalogEntryModel<TKey>.Display))!, displayExpression),
+            };
+
+            MemberInitExpression memberInit = Expression.MemberInit(newExpression, bindings);
+
+            Expression<Func<TEntity, CatalogEntryModel<TKey>>> lambda = Expression.Lambda<Func<TEntity, CatalogEntryModel<TKey>>>(memberInit, parameter);
+
+            // Execute the query.
+            IQueryable<CatalogEntryModel<TKey>> catalogQuery = query.Select(lambda);
+
+            // When needed, apply criteria.
+            if (!string.IsNullOrWhiteSpace(parameters.Criteria))
             {
-                catalogQuery = catalogQuery.Where(x =>
-                    x.Value != null
-                    && EF.Functions.Like(x.Value.ToLower(), $"%{parameters.Criteria.ToLower()}%")
-                );
+                catalogQuery = catalogQuery.Where(x => x.Display != null && EF.Functions.Like(x.Display.ToLower(), $"%{parameters.Criteria.ToLower()}%"));
             }
+
+            // Build the result class.
+            CatalogResultModel<TKey> result = new();
 
             if (parameters.MaxResults > 0 && catalogQuery.Count() > parameters.MaxResults)
             {
@@ -47,12 +63,7 @@ namespace ZWebAPI.ExtensionMethods
             }
             else
             {
-                result.Entries = catalogQuery
-                    .Select(x => new CatalogEntryModel<TKey>()
-                    {
-                        Display = x.Value,
-                        Value = x.Key,
-                    });
+                result.Entries = catalogQuery;
             }
 
             return result;
@@ -241,16 +252,6 @@ namespace ZWebAPI.ExtensionMethods
                 }
             }
             return null;
-        }
-
-        private static IQueryable<KeyValuePair<TKey, string?>> ConvertToKeyValuePairs<TEntity, TKey>(this IQueryable<TEntity> query, Expression<Func<TEntity, TKey>> keySelector, Expression<Func<TEntity, string?>> valueSelector)
-            where TEntity : class
-            where TKey : struct
-        {
-            return query.Select(x => new KeyValuePair<TKey, string?>(
-                keySelector.Compile().Invoke(x),
-                valueSelector.Compile().Invoke(x)
-            ));
         }
 
         private static ParameterExpression GetParameter<TEntity>()
