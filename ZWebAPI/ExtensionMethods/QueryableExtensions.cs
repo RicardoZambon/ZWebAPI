@@ -95,195 +95,141 @@ namespace ZWebAPI.ExtensionMethods
         /// Tries to filter the query.
         /// </summary>
         /// <typeparam name="TEntity">The type of the entity.</typeparam>
+        /// <typeparam name="TValue">The type of the value.</typeparam>
         /// <param name="query">The query.</param>
         /// <param name="parameters">The parameters.</param>
-        /// <param name="property">The property.</param>
+        /// <param name="selector">The selector.</param>
         /// <param name="filterType">Type of the filter.</param>
         /// <returns>Return the query filtered.</returns>
-        public static IQueryable<TEntity> TryFilter<TEntity>(this IQueryable<TEntity> query, ISummaryParameters parameters, string property, FilterTypes filterType)
+        public static IQueryable<TEntity> TryFilter<TEntity, TValue>(this IQueryable<TEntity> query, ISummaryParameters parameters, Expression<Func<TEntity, TValue>> selector, FilterTypes filterType)
         {
-            return query.TryFilter(parameters, property, property, filterType);
+            MemberExpression? memberExpression = GetMemberExpression(selector);
+            if (memberExpression is null)
+            {
+                return query;
+            }
+
+            string parameterName = GetParameterName(memberExpression);
+            if (!parameters.HasFilter(parameterName))
+            {
+                return query;
+            }
+
+            object? filterValue = parameters.GetFilterValue(parameterName, typeof(TValue));
+
+            return RunFilter(query, selector.Parameters.First(), memberExpression, filterValue, filterType);
         }
 
         /// <summary>
-        /// Tries to filter the query.
+        /// Tries the filter.
         /// </summary>
         /// <typeparam name="TEntity">The type of the entity.</typeparam>
+        /// <typeparam name="TValue">The type of the value.</typeparam>
         /// <param name="query">The query.</param>
         /// <param name="parameters">The parameters.</param>
-        /// <param name="property">The property.</param>
+        /// <param name="selector">The selector.</param>
         /// <param name="parameterName">Name of the parameter.</param>
         /// <param name="filterType">Type of the filter.</param>
         /// <returns>Return the query filtered.</returns>
-        /// <exception cref="System.Exception">The property {typeProperty} was not found in the type {(filterProperty?.PropertyType ?? typeof(TEntity)).Name}.</exception>
-        public static IQueryable<TEntity> TryFilter<TEntity>(this IQueryable<TEntity> query, ISummaryParameters parameters, string property, string parameterName, FilterTypes filterType)
+        public static IQueryable<TEntity> TryFilter<TEntity, TValue>(this IQueryable<TEntity> query, ISummaryParameters parameters, Expression<Func<TEntity, TValue>> selector, string parameterName, FilterTypes filterType)
         {
-            PropertyInfo? filterProperty = null;
-
-            string[] properties = property.Split(".");
-            foreach (string typeProperty in properties)
+            if (!parameters.HasFilter(parameterName))
             {
-                filterProperty = (filterProperty?.PropertyType ?? typeof(TEntity)).GetProperty(typeProperty);
-
-                if (filterProperty is null)
-                {
-                    throw new Exception($"The property {typeProperty} was not found in the type {(filterProperty?.PropertyType ?? typeof(TEntity)).Name}.");
-                }
+                return query;
             }
 
-            if (parameters.HasFilter(parameterName) && filterProperty is not null)
+            MemberExpression? memberExpression = GetMemberExpression(selector);
+            if (memberExpression is null)
             {
-                object? filterValue = parameters.GetFilterValue(parameterName, filterProperty.PropertyType);
-
-                return RunFilter(query, property, filterValue, filterType);
+                return query;
             }
-            return query;
+
+            object? filterValue = parameters.GetFilterValue(parameterName, typeof(TValue));
+
+            return RunFilter(query, selector.Parameters.First(), memberExpression, filterValue, filterType);
         }
 
         /// <summary>
         /// Tries to filter the query with arbitrary value.
         /// </summary>
         /// <typeparam name="TEntity">The type of the entity.</typeparam>
+        /// <typeparam name="TValue">The type of the value.</typeparam>
         /// <param name="query">The query.</param>
-        /// <param name="property">The property.</param>
+        /// <param name="selector">The selector.</param>
         /// <param name="filterValue">The filter value.</param>
         /// <param name="filterType">Type of the filter.</param>
         /// <returns>Return the query filtered.</returns>
-        public static IQueryable<TEntity> TryFilterWithValue<TEntity>(this IQueryable<TEntity> query, string property, object? filterValue, FilterTypes filterType)
+        public static IQueryable<TEntity> TryFilterWithValue<TEntity, TValue>(this IQueryable<TEntity> query, Expression<Func<TEntity, TValue>> selector, object? filterValue, FilterTypes filterType)
         {
-            if (filterValue is not null)
+            MemberExpression? memberExpression = GetMemberExpression(selector);
+
+            if (memberExpression is null)
             {
-                return RunFilter(query, property, filterValue, filterType);
+                return query;
             }
-            return query;
+
+            return RunFilter(query, selector.Parameters.First(), memberExpression, filterValue, filterType);
         }
         #endregion
 
         #region Private methods
-        private static Expression<Func<TEntity, bool>>? BuildEqualsExpression<TEntity>(string propertyName, object? propertyValue)
-        {
-            ParameterExpression parameter = GetParameter<TEntity>();
-
-            if (GetProperty(parameter, propertyName) is MemberExpression property)
-            {
-                UnaryExpression value = Expression.Convert(Expression.Constant(propertyValue), property.Type);
-
-                return BuildLambda<TEntity>(Expression.Equal(property, value), parameter);
-            }
-            return null;
-        }
-
-        private static Expression<Func<TEntity, bool>>? BuildGreaterThanExpression<TEntity>(string propertyName, object? propertyValue)
-        {
-            ParameterExpression parameter = GetParameter<TEntity>();
-
-            if (GetProperty(parameter, propertyName) is MemberExpression property)
-            {
-                UnaryExpression value = Expression.Convert(Expression.Constant(propertyValue), property.Type);
-
-                return BuildLambda<TEntity>(Expression.GreaterThan(property, value), parameter);
-            }
-            return null;
-        }
-
-        private static Expression<Func<TEntity, bool>>? BuildGreaterThanOrEqualExpression<TEntity>(string propertyName, object? propertyValue)
-        {
-            ParameterExpression parameter = GetParameter<TEntity>();
-
-            if (GetProperty(parameter, propertyName) is MemberExpression property)
-            {
-                UnaryExpression value = Expression.Convert(Expression.Constant(propertyValue), property.Type);
-
-                return BuildLambda<TEntity>(Expression.GreaterThanOrEqual(property, value), parameter);
-            }
-            return null;
-        }
-
         private static Expression<Func<TEntity, bool>>? BuildLambda<TEntity>(Expression body, ParameterExpression parameter)
             => Expression.Lambda<Func<TEntity, bool>>(body, parameter);
 
-        private static Expression<Func<TEntity, bool>>? BuildLessThanExpression<TEntity>(string propertyName, object? propertyValue)
+        private static MemberExpression? GetMemberExpression<TEntity, TValue>(Expression<Func<TEntity, TValue>> selector)
         {
-            ParameterExpression parameter = GetParameter<TEntity>();
+            MemberExpression? memberExpression = null;
 
-            if (GetProperty(parameter, propertyName) is MemberExpression property)
+            if (selector.Body is MemberExpression selectorMemberExpression)
             {
-                UnaryExpression value = Expression.Convert(Expression.Constant(propertyValue), property.Type);
-
-                return BuildLambda<TEntity>(Expression.LessThan(property, value), parameter);
+                memberExpression = selectorMemberExpression;
             }
-            return null;
-        }
-
-        private static Expression<Func<TEntity, bool>>? BuildLessThanOrEqualExpression<TEntity>(string propertyName, object? propertyValue)
-        {
-            ParameterExpression parameter = GetParameter<TEntity>();
-
-            if (GetProperty(parameter, propertyName) is MemberExpression property)
+            else if (selector.Body is UnaryExpression selectorUnaryExpression && selectorUnaryExpression.Operand is MemberExpression)
             {
-                UnaryExpression value = Expression.Convert(Expression.Constant(propertyValue), property.Type);
-
-                return BuildLambda<TEntity>(Expression.LessThanOrEqual(property, value), parameter);
-            }
-            return null;
-        }
-
-        private static Expression<Func<TEntity, bool>>? BuildLikeExpression<TEntity>(string propertyName, object? propertyValue)
-        {
-            if (typeof(DbFunctionsExtensions).GetMethods().FirstOrDefault(x => x.Name == "Like" && x.GetParameters().Length == 3) is MethodInfo method)
-            {
-                ParameterExpression parameter = GetParameter<TEntity>();
-
-                if (GetProperty(parameter, propertyName) is MemberExpression property)
-                {
-                    ConstantExpression value = Expression.Constant($"%{propertyValue?.ToString() ?? string.Empty}%");
-
-                    MethodCallExpression methodCall = Expression.Call(method, Expression.Constant(EF.Functions), property, value);
-
-                    return BuildLambda<TEntity>(methodCall, parameter);
-                }
-            }
-            return null;
-        }
-
-        private static ParameterExpression GetParameter<TEntity>()
-            => Expression.Parameter(typeof(TEntity), typeof(TEntity).Name.ToLower());
-
-        private static MemberExpression? GetProperty(Expression parameter, string propertyName)
-        {
-            MemberExpression? expression = null;
-
-            string[] properties = propertyName.Split(".");
-            foreach (string property in properties)
-            {
-                expression = Expression.Property(expression ?? parameter, property);
+                memberExpression = (MemberExpression)selectorUnaryExpression.Operand;
             }
 
-            return expression;
+            return memberExpression;
         }
 
-        private static IQueryable<TEntity> RunFilter<TEntity>(this IQueryable<TEntity> query, string property, object? filterValue, FilterTypes filterType)
+        private static string GetParameterName(MemberExpression? memberExpression)
         {
+            Stack<string> members = new();
+            while (memberExpression != null)
+            {
+                members.Push(memberExpression.Member.Name);
+                memberExpression = memberExpression.Expression as MemberExpression;
+            }
+            return string.Join(string.Empty, members);
+        }
+
+        private static IQueryable<TEntity> RunFilter<TEntity>(this IQueryable<TEntity> query, ParameterExpression parameter, MemberExpression memberExpression, object? filterValue, FilterTypes filterType)
+        {
+            UnaryExpression value = Expression.Convert(Expression.Constant(filterValue), memberExpression.Type);
+
             Expression<Func<TEntity, bool>>? where = null;
             switch (filterType)
             {
                 case FilterTypes.Like:
-                    where = BuildLikeExpression<TEntity>(property, filterValue);
+                    if (typeof(DbFunctionsExtensions).GetMethods().FirstOrDefault(x => x.Name == "Like" && x.GetParameters().Length == 3) is MethodInfo method)
+                    {
+                        where = BuildLambda<TEntity>(Expression.Call(method, Expression.Constant(EF.Functions), memberExpression, value), parameter);
+                    }
                     break;
                 case FilterTypes.Equals:
-                    where = BuildEqualsExpression<TEntity>(property, filterValue);
+                    where = BuildLambda<TEntity>(Expression.Equal(memberExpression, value), parameter);
                     break;
                 case FilterTypes.LessThan:
-                    where = BuildLessThanExpression<TEntity>(property, filterValue);
+                    where = BuildLambda<TEntity>(Expression.LessThan(memberExpression, value), parameter);
                     break;
                 case FilterTypes.LessThanOrEqual:
-                    where = BuildLessThanOrEqualExpression<TEntity>(property, filterValue);
+                    where = BuildLambda<TEntity>(Expression.LessThanOrEqual(memberExpression, value), parameter);
                     break;
                 case FilterTypes.GreaterThan:
-                    where = BuildGreaterThanExpression<TEntity>(property, filterValue);
+                    where = BuildLambda<TEntity>(Expression.GreaterThan(memberExpression, value), parameter);
                     break;
                 case FilterTypes.GreatherThanOrEqual:
-                    where = BuildGreaterThanOrEqualExpression<TEntity>(property, filterValue);
+                    where = BuildLambda<TEntity>(Expression.GreaterThanOrEqual(memberExpression, value), parameter);
                     break;
             }
 
