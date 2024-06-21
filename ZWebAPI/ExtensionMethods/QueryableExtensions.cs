@@ -205,6 +205,11 @@ namespace ZWebAPI.ExtensionMethods
 
         private static IQueryable<TEntity> RunFilter<TEntity>(this IQueryable<TEntity> query, ParameterExpression parameter, MemberExpression memberExpression, object? filterValue, FilterTypes filterType)
         {
+            if (filterType == FilterTypes.Like)
+            {
+                filterValue = $"%{filterValue}%";
+            }
+
             UnaryExpression value = Expression.Convert(Expression.Constant(filterValue), memberExpression.Type);
 
             Expression<Func<TEntity, bool>>? where = null;
