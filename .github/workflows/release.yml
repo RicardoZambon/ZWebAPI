@@ -25,7 +25,6 @@ jobs:
         id: release
         uses: cycjimmy/semantic-release-action@v4
         with:
-          working_directory: ./ZWebAPI
           extra_plugins: |
             @semantic-release/commit-analyzer
             @semantic-release/release-notes-generator
