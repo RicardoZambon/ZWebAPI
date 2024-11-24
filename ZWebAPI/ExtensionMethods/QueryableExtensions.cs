@@ -47,11 +47,14 @@ namespace ZWebAPI.ExtensionMethods
 
             // Execute the query.
             IQueryable<CatalogEntryModel<TKey>> catalogQuery = query.Select(lambda);
+            bool hasCriteria = false;
 
             // When needed, apply criteria.
             if (!string.IsNullOrWhiteSpace(parameters.Criteria))
             {
-                catalogQuery = catalogQuery.Where(x => x.Display != null && EF.Functions.Like(x.Display.ToLower(), $"%{parameters.Criteria.ToLower()}%"));
+                hasCriteria = true;
+                catalogQuery = catalogQuery
+                    .Where(x => x.Display != null && EF.Functions.Like(x.Display.ToLower(), $"%{parameters.Criteria.ToLower()}%"));
             }
 
             // Build the result class.
@@ -59,11 +62,19 @@ namespace ZWebAPI.ExtensionMethods
 
             if (parameters.MaxResults > 0 && catalogQuery.Count() > parameters.MaxResults)
             {
-                result.ShouldUseCriteria = true;
+                if (!hasCriteria)
+                {
+                    result.ShouldUseCriteria = true;
+                }
+                else
+                {
+                    catalogQuery = catalogQuery.Take(parameters.MaxResults);
+                }
             }
-            else
+
+            if (!result.ShouldUseCriteria)
             {
-                result.Entries = catalogQuery;
+                result.Entries = catalogQuery.OrderBy(x => x.Display);
             }
 
             return result;
