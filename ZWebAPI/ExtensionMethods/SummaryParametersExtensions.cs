@@ -63,58 +63,106 @@ namespace ZWebAPI.ExtensionMethods
 
             if (filter?.Value is JsonElement jsonValue)
             {
-                switch (jsonValue.ValueKind)
+                if (jsonValue.ValueKind == JsonValueKind.Null)
                 {
-                    case JsonValueKind.False:
-                    case JsonValueKind.True:
+                    return null;
+                }
+
+                switch (Type.GetTypeCode(resultType))
+                {
+                    case TypeCode.Boolean:
+                        if (jsonValue.ValueKind == JsonValueKind.String && bool.TryParse(jsonValue.GetString(), out bool boolResult))
+                        {
+                            return boolResult;
+                        }
                         return jsonValue.GetBoolean();
-                    case JsonValueKind.Null:
-                        return null;
-                    case JsonValueKind.Number:
-                        if (resultType == typeof(byte))
+
+                    case TypeCode.Byte:
+                        if (jsonValue.ValueKind == JsonValueKind.String && byte.TryParse(jsonValue.GetString(), out byte byteResult))
                         {
-                            return jsonValue.GetByte();
+                            return byteResult;
                         }
-                        else if (resultType == typeof(decimal))
+                        return jsonValue.GetByte();
+
+                    case TypeCode.DateTime:
+                        if (jsonValue.ValueKind == JsonValueKind.String && DateTime.TryParse(jsonValue.GetString(), out DateTime dateTimeResult))
                         {
-                            return jsonValue.GetDecimal();
+                            return dateTimeResult;
                         }
-                        else if (resultType == typeof(double))
+                        return jsonValue.GetDateTime();
+
+                    case TypeCode.Decimal:
+                        if (jsonValue.ValueKind == JsonValueKind.String && decimal.TryParse(jsonValue.GetString(), out decimal decimalTimeResult))
                         {
-                            return jsonValue.GetDouble();
+                            return decimalTimeResult;
                         }
-                        else if (resultType == typeof(float))
+                        return jsonValue.GetDecimal();
+
+                    case TypeCode.Double:
+                        if (jsonValue.ValueKind == JsonValueKind.String && double.TryParse(jsonValue.GetString(), out double doubleResult))
                         {
-                            return jsonValue.GetSingle();
+                            return doubleResult;
                         }
-                        else if (resultType == typeof(long))
+                        return jsonValue.GetDouble();
+
+                    case TypeCode.Int16:
+                        if (jsonValue.ValueKind == JsonValueKind.String && short.TryParse(jsonValue.GetString(), out short shortResult))
                         {
-                            return jsonValue.GetInt64();
+                            return shortResult;
                         }
-                        else if (resultType == typeof(sbyte))
+                        return jsonValue.GetInt16();
+
+                    case TypeCode.Int32:
+                        if (jsonValue.ValueKind == JsonValueKind.String && int.TryParse(jsonValue.GetString(), out int intResult))
                         {
-                            return jsonValue.GetSByte();
-                        }
-                        else if (resultType == typeof(short))
-                        {
-                            return jsonValue.GetInt16();
-                        }
-                        else if (resultType == typeof(uint))
-                        {
-                            return jsonValue.GetUInt32();
-                        }
-                        else if (resultType == typeof(ulong))
-                        {
-                            return jsonValue.GetUInt64();
-                        }
-                        else if (resultType == typeof(ushort))
-                        {
-                            return jsonValue.GetUInt16();
+                            return intResult;
                         }
                         return jsonValue.GetInt32();
 
-                    case JsonValueKind.String:
-                        return jsonValue.Deserialize(resultType);
+                    case TypeCode.Int64:
+                        if (jsonValue.ValueKind == JsonValueKind.String && long.TryParse(jsonValue.GetString(), out long longResult))
+                        {
+                            return longResult;
+                        }
+                        return jsonValue.GetInt64();
+
+                    case TypeCode.SByte:
+                        if (jsonValue.ValueKind == JsonValueKind.String && sbyte.TryParse(jsonValue.GetString(), out sbyte sbyteResult))
+                        {
+                            return sbyteResult;
+                        }
+                        return jsonValue.GetSByte();
+
+                    case TypeCode.Single:
+                        if (jsonValue.ValueKind == JsonValueKind.String && float.TryParse(jsonValue.GetString(), out float floatResult))
+                        {
+                            return floatResult;
+                        }
+                        return jsonValue.GetSingle();
+
+                    case TypeCode.UInt16:
+                        if (jsonValue.ValueKind == JsonValueKind.String && ushort.TryParse(jsonValue.GetString(), out ushort ushortResult))
+                        {
+                            return ushortResult;
+                        }
+                        return jsonValue.GetInt16();
+
+                    case TypeCode.UInt32:
+                        if (jsonValue.ValueKind == JsonValueKind.String && uint.TryParse(jsonValue.GetString(), out uint uintResult))
+                        {
+                            return uintResult;
+                        }
+                        return jsonValue.GetInt32();
+
+                    case TypeCode.UInt64:
+                        if (jsonValue.ValueKind == JsonValueKind.String && ulong.TryParse(jsonValue.GetString(), out ulong ulongResult))
+                        {
+                            return ulongResult;
+                        }
+                        return jsonValue.GetInt64();
+
+                    case TypeCode.String:
+                        return jsonValue.GetString();
 
                     default:
                         object rawValue = jsonValue.GetRawText();
