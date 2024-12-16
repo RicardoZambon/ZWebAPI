@@ -68,7 +68,9 @@ namespace ZWebAPI.ExtensionMethods
                     return null;
                 }
 
-                switch (Type.GetTypeCode(resultType))
+                Type underlyingType = Nullable.GetUnderlyingType(resultType) ?? resultType;
+                TypeCode typeCode = Type.GetTypeCode(underlyingType);
+                switch (typeCode)
                 {
                     case TypeCode.Boolean:
                         if (jsonValue.ValueKind == JsonValueKind.String && bool.TryParse(jsonValue.GetString(), out bool boolResult))
