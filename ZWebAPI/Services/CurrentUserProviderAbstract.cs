@@ -15,14 +15,20 @@ namespace ZWebAPI.Services
         public TUserKey? CurrentUserID { get => serviceUserMode ? DefaultServiceUserID : UserID; }
 
         /// <summary>
+        /// Gets the default service user identifier.
+        /// </summary>
+        /// <value>
+        /// The default service user identifier.
+        /// </value>
+        protected abstract TUserKey DefaultServiceUserID { get; }
+
+        /// <summary>
         /// Gets the user identifier.
         /// </summary>
         /// <value>
         /// The user identifier.
         /// </value>
         public abstract TUserKey? UserID { get; }
-
-        protected abstract TUserKey DefaultServiceUserID { get; }
         #endregion
 
         #region Constructors

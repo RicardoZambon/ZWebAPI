@@ -13,7 +13,10 @@ namespace ZWebAPI.ExtensionMethods
         /// <summary>
         /// Adds the audit handler service to the service collection.
         /// </summary>
-        /// <typeparam name="TAuditHandler">The type of the audit handler.</typeparam>
+        /// <typeparam name="TServicesHistory">The type of the services history.</typeparam>
+        /// <typeparam name="TOperationsHistory">The type of the operations history.</typeparam>
+        /// <typeparam name="TUsers">The type of the users.</typeparam>
+        /// <typeparam name="TUsersKey">The type of the users key.</typeparam>
         /// <param name="services">The services.</param>
         /// <returns>The service collection.</returns>
         public static IServiceCollection AddAuditService<TServicesHistory, TOperationsHistory, TUsers, TUsersKey>(this IServiceCollection services)
