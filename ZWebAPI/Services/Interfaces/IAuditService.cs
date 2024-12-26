@@ -29,12 +29,13 @@ namespace ZWebAPI.Services.Interfaces
         Task BeginNewServiceHistoryAsync();
 
         /// <summary>
-        /// Lists the operations history from the service history identifier.
+        /// Lists the entity operations history from the service history asynchronous.
         /// </summary>
         /// <typeparam name="TEntity">The type of the entity.</typeparam>
+        /// <param name="entityID">The entity identifier.</param>
         /// <param name="serviceHistoryID">The service history identifier.</param>
         /// <param name="parameters">The parameters.</param>
-        /// <returns>Query with all operations history from the service history identifier.</returns>
+        /// <returns>Query with all operations history from the service history identifier</returns>
         Task<IQueryable<OperationsHistoryListModel>> ListEntityOperationsHistoryAsync<TEntity>(long entityID, long serviceHistoryID, IListParameters parameters)
             where TEntity : AuditableEntity<TUsers, TUsersKey>;
 

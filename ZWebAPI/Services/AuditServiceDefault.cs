@@ -35,6 +35,12 @@ namespace ZWebAPI.Services
         #endregion
 
         #region Properties
+        /// <summary>
+        /// Gets the current service history.
+        /// </summary>
+        /// <value>
+        /// The current service history.
+        /// </value>
         protected TServicesHistory? CurrentServiceHistory { get; private set; } = null;
         #endregion
 
