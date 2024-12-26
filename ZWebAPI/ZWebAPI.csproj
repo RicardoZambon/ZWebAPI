@@ -17,6 +17,13 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<None Include="..\README.md">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="AutoMapper" Version="13.0.1" />
 		<PackageReference Include="ZDatabase" Version="1.4.0" />
 		<PackageReference Include="ZSecurity" Version="1.2.0" />
