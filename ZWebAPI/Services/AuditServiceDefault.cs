@@ -9,6 +9,7 @@ using ZDatabase.Entries;
 using ZDatabase.Exceptions;
 using ZDatabase.Interfaces;
 using ZDatabase.Repositories.Audit.Interfaces;
+using ZSecurity.Attributes;
 using ZSecurity.Helpers;
 using ZSecurity.Services;
 using ZWebAPI.ExtensionMethods;
@@ -87,7 +88,7 @@ namespace ZWebAPI.Services
         /// <inheritdoc />
         public async Task BeginNewServiceHistoryAsync()
         {
-            MethodBase method = StackTraceHelper.GetMethodImplementingActionMethodAttribute()
+            MethodBase method = StackTraceHelper.GetStackTraceMethodImplementingAttribute<ActionMethodAttribute>()
                 ?? throw new Exception("Could not find any previous method in StackTrace implementing ActionMethodAttribute.");
 
             string? serviceName = method.DeclaringType?.GetInterfaces().FirstOrDefault()?.Name;
