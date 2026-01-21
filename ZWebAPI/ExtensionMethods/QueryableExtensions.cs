@@ -24,8 +24,9 @@ namespace ZWebAPI.ExtensionMethods
         /// <param name="parameters">The parameters.</param>
         /// <param name="valueSelector">The value selector.</param>
         /// <param name="displaySelector">The display selector.</param>
+        /// <param name="customFilter">The custom filter.</param>
         /// <returns>The catalog result model.</returns>
-        public static CatalogResultModel<TKey> GetCatalog<TEntity, TKey>(this IQueryable<TEntity> query, ICatalogParameters parameters, Expression<Func<TEntity, TKey>> valueSelector, Expression<Func<TEntity, string?>> displaySelector)
+        public static CatalogResultModel<TKey> GetCatalog<TEntity, TKey>(this IQueryable<TEntity> query, ICatalogParameters parameters, Expression<Func<TEntity, TKey>> valueSelector, Expression<Func<TEntity, string?>> displaySelector, Expression<Func<CatalogEntryModel<TKey>, bool>>? customFilter = null)
             where TEntity : class
             where TKey : struct
         {
@@ -53,8 +54,16 @@ namespace ZWebAPI.ExtensionMethods
             if (!string.IsNullOrWhiteSpace(parameters.Criteria))
             {
                 hasCriteria = true;
-                catalogQuery = catalogQuery
-                    .Where(x => x.Display != null && EF.Functions.Like(x.Display.ToLower(), $"%{parameters.Criteria.ToLower()}%"));
+                if (customFilter is not null)
+                {
+                    catalogQuery = catalogQuery
+                        .Where(customFilter);
+                }
+                else
+                {
+                    catalogQuery = catalogQuery
+                        .Where(x => x.Display != null && EF.Functions.Like(x.Display.ToLower(), $"%{parameters.Criteria.ToLower()}%"));
+                }
             }
 
             // Build the result class.
