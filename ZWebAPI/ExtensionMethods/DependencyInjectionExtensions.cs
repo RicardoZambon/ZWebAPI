@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using ZDatabase.Entities.Audit;
+using ZWebAPI.Exporters;
 using ZWebAPI.Services;
 using ZWebAPI.Services.Interfaces;
 
@@ -26,5 +27,14 @@ namespace ZWebAPI.ExtensionMethods
             where TUsersKey : struct
             => services
                 .AddScoped<IAuditService<TUsers, TUsersKey>, AuditServiceDefault<TServicesHistory, TOperationsHistory, TUsers, TUsersKey>>();
+
+        /// <summary>
+        /// Adds the list exporter service to the service collection.
+        /// </summary>
+        /// <param name="services">The services.</param>
+        /// <returns>The service collection.</returns>
+        public static IServiceCollection AddListExporter(this IServiceCollection services)
+            => services
+                .AddSingleton<IListExporter, ListExporter>();
     }
 }
