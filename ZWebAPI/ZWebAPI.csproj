@@ -8,12 +8,15 @@
 		<Authors>Ricardo Zambon</Authors>
 		<Company>ZambonSoft</Company>
 		<Version>1.0.0</Version>
-		<RepositoryUrl>https://github.com/RicardoZambon/ZSecurity</RepositoryUrl>
+		<PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+		<PackageTags>webapi;aspnetcore;rest;crud</PackageTags>
+		<RepositoryUrl>https://github.com/RicardoZambon/ZWebAPI</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 		<Description>ZWebAPI is a library that brings additional functionalities for web API projects.</Description>
 		<Copyright>ZambonSoft</Copyright>
-		<PackageProjectUrl>https://github.com/RicardoZambon/ZSecurity</PackageProjectUrl>
+		<PackageProjectUrl>https://github.com/RicardoZambon/ZWebAPI</PackageProjectUrl>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -27,8 +30,8 @@
 		<PackageReference Include="AutoMapper" Version="14.0.0" />
 		<PackageReference Include="ClosedXML" Version="0.104.2" />
 		<PackageReference Include="QuestPDF" Version="2024.12.3" />
-		<PackageReference Include="ZDatabase" Version="1.4.0" />
-		<PackageReference Include="ZSecurity" Version="1.3.0" />
+		<PackageReference Include="ZDatabase" Version="1.5.1" />
+		<PackageReference Include="ZSecurity" Version="1.3.1" />
 	</ItemGroup>
 
 </Project>
