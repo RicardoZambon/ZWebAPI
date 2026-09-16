@@ -68,7 +68,20 @@ namespace ZWebAPI.ExtensionMethods
                     return null;
                 }
 
-                switch (Type.GetTypeCode(resultType))
+                // Nullable<T> is unwrapped before anything asks what the type is. Type.GetTypeCode
+                // answers Object for Nullable<long>, not Int64, so a nullable column fell through to
+                // the default branch and Convert.ChangeType threw -- it cannot produce a Nullable<T>:
+                //
+                //   InvalidCastException: Invalid cast from 'System.String' to
+                //   'System.Nullable`1[[System.Int64, ...]]'
+                //
+                // Filtering by any nullable property therefore failed before a row was read.
+                // IsEnum is false for Nullable<TEnum> for the same reason, so nullable enums are
+                // covered by unwrapping too. Returning the underlying value boxed is what callers
+                // already expect: RunFilter converts the constant to the member's own type.
+                Type targetType = Nullable.GetUnderlyingType(resultType) ?? resultType;
+
+                switch (Type.GetTypeCode(targetType))
                 {
                     case TypeCode.Boolean:
                         if (jsonValue.ValueKind == JsonValueKind.String && bool.TryParse(jsonValue.GetString(), out bool boolResult))
@@ -171,11 +184,11 @@ namespace ZWebAPI.ExtensionMethods
                             return null;
                         }
 
-                        if (resultType.IsEnum)
+                        if (targetType.IsEnum)
                         {
-                            return Enum.Parse(resultType, rawValue.ToString() ?? string.Empty);
+                            return Enum.Parse(targetType, rawValue.ToString() ?? string.Empty);
                         }
-                        return Convert.ChangeType(rawValue, resultType);
+                        return Convert.ChangeType(rawValue, targetType);
                 }
             }
             return null;
