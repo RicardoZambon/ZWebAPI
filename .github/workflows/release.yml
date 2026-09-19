@@ -19,7 +19,12 @@ permissions:
 env:
   PROJECT_PATH: 'ZWebAPI/ZWebAPI.csproj'
   PACKAGE_OUTPUT_DIRECTORY: ${{ github.workspace }}/output
-  DOTNET_VERSION: 9.0.x
+  # Every target framework the library ships, so "dotnet test" can run the suite
+  # on each of them. The newest SDK installed is the one that drives the build.
+  DOTNET_VERSION: |
+    8.0.x
+    9.0.x
+    10.0.x
 
 # Cancel superseded PR runs, but never cancel a release in progress;
 # queueing runs on main also prevents two merges from racing the same version.

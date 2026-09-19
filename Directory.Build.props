@@ -1,0 +1,26 @@
+<Project>
+
+  <!--
+    Target frameworks shared by the library and its test project, so the two can
+    never drift onto different runtimes.
+  -->
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+  </PropertyGroup>
+
+  <!--
+    EF Core floor for each target framework. These are minimums: NuGet resolves a
+    floor to the lowest satisfying version, so this is what consumers actually get
+    unless they reference something newer.
+
+    net8.0 floors at 8.0.11 rather than 8.0.0 because EF Core 8.0.0 pulls
+    Microsoft.Extensions.Caching.Memory 8.0.0, which carries a high severity
+    advisory (NU1903, GHSA-qj66-m88j-hmgj).
+  -->
+  <PropertyGroup>
+    <EFCoreVersion Condition="'$(TargetFramework)' == 'net8.0'">8.0.11</EFCoreVersion>
+    <EFCoreVersion Condition="'$(TargetFramework)' == 'net9.0'">9.0.0</EFCoreVersion>
+    <EFCoreVersion Condition="'$(TargetFramework)' == 'net10.0'">10.0.0</EFCoreVersion>
+  </PropertyGroup>
+
+</Project>

@@ -1,4 +1,4 @@
-using ClosedXML.Excel;
+﻿using ClosedXML.Excel;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -109,7 +109,7 @@ namespace ZWebAPI.Exporters.Formats
                 case ExportColumnType.Boolean:
                     if (value is bool b)
                     {
-                        cell.Value = b ? "Sim" : "N�o";
+                        cell.Value = b ? "Sim" : "Não";
                     }
                     else
                     {
