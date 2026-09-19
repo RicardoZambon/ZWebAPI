@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using System.Diagnostics.CodeAnalysis;
 using ZDatabase.Entities.Audit;
 using ZWebAPI.Exporters;
 using ZWebAPI.Services;
@@ -9,6 +10,7 @@ namespace ZWebAPI.ExtensionMethods
     /// <summary>
     /// Extension methods for <see cref="Microsoft.Extensions.DependencyInjection.IServiceCollection"/>.
     /// </summary>
+    [ExcludeFromCodeCoverage]
     public static class DependencyInjectionExtensions
     {
         /// <summary>
