@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Globalization;
 
 namespace ZWebAPI.Exporters
@@ -12,7 +12,7 @@ namespace ZWebAPI.Exporters
         #region Variables
         /// <summary>
         /// Culture used for all formatting. Uses pt-BR because the application targets Brazilian
-        /// users — decimals as <c>1.234,56</c> and dates as <c>dd/MM/yyyy</c>.
+        /// users â€” decimals as <c>1.234,56</c> and dates as <c>dd/MM/yyyy</c>.
         /// </summary>
         public static readonly CultureInfo Culture = new("pt-BR");
         #endregion
@@ -34,7 +34,7 @@ namespace ZWebAPI.Exporters
                 ExportColumnType.DateTime => value is DateTime dtm ? dtm.ToString("dd/MM/yyyy HH:mm", Culture) : value.ToString() ?? string.Empty,
                 ExportColumnType.Currency => value is IFormattable fmt1 ? fmt1.ToString("C2", Culture) : value.ToString() ?? string.Empty,
                 ExportColumnType.Number => value is IFormattable fmt2 ? fmt2.ToString("N2", Culture) : value.ToString() ?? string.Empty,
-                ExportColumnType.Boolean => value is bool b ? (b ? "Sim" : "Não") : value.ToString() ?? string.Empty,
+                ExportColumnType.Boolean => value is bool b ? (b ? "Sim" : "NÃ£o") : value.ToString() ?? string.Empty,
                 _ => value.ToString() ?? string.Empty,
             };
         }

@@ -1,9 +1,9 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace ZWebAPI.Exporters
 {
     /// <summary>
-    /// Generic list exporter � converts a row collection into a file payload for any supported
+    /// Generic list exporter — converts a row collection into a file payload for any supported
     /// <see cref="ExportFormat"/>. Column metadata is either reflected from the row type's
     /// public properties (optionally annotated with <see cref="ExportColumnAttribute"/>) or
     /// provided explicitly by the caller.

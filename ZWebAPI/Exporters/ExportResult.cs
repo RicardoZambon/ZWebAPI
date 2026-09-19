@@ -1,7 +1,7 @@
-namespace ZWebAPI.Exporters
+﻿namespace ZWebAPI.Exporters
 {
     /// <summary>
-    /// Result produced by <see cref="IListExporter"/> � a file payload with its MIME metadata.
+    /// Result produced by <see cref="IListExporter"/> — a file payload with its MIME metadata.
     /// </summary>
     public sealed class ExportResult
     {
