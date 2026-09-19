@@ -28,4 +28,9 @@
     <ProjectReference Include="..\ZWebAPI\ZWebAPI.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- NSubstitute builds its proxies in a dynamic assembly, which needs to see the internal fakes. -->
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+  </ItemGroup>
+
 </Project>
