@@ -34,7 +34,7 @@ namespace ZWebAPI.Services.Interfaces
         /// <typeparam name="TEntity">The type of the entity.</typeparam>
         /// <param name="entityID">The entity identifier.</param>
         /// <param name="serviceHistoryID">The service history identifier.</param>
-        /// <param name="parameters">The parameters.</param>
+        /// <param name="parameters">The parameters. Recognises <see cref="Models.Audit.AuditFilters.OnlyCurrentEntity"/>.</param>
         /// <returns>Query with all operations history from the service history identifier</returns>
         Task<IQueryable<OperationsHistoryListModel>> ListEntityOperationsHistoryAsync<TEntity>(long entityID, long serviceHistoryID, IListParameters parameters)
             where TEntity : AuditableEntity<TUsers, TUsersKey>;
@@ -44,7 +44,12 @@ namespace ZWebAPI.Services.Interfaces
         /// </summary>
         /// <typeparam name="TEntity">The type of the entity.</typeparam>
         /// <param name="entityID">The entity identifier.</param>
-        /// <param name="parameters">The parameters.</param>
+        /// <param name="parameters">
+        /// The parameters. Recognises <see cref="Models.Audit.AuditFilters.Name"/>,
+        /// <see cref="Models.Audit.AuditFilters.ChangedByID"/>,
+        /// <see cref="Models.Audit.AuditFilters.ChangedOnFrom"/> and
+        /// <see cref="Models.Audit.AuditFilters.ChangedOnTo"/>.
+        /// </param>
         /// <returns>Query with all services history from the entity identifier.</returns>
         Task<IQueryable<ServicesHistoryListModel>> ListEntityServicesHistoryAsync<TEntity>(long entityID, IListParameters parameters)
             where TEntity : AuditableEntity<TUsers, TUsersKey>;

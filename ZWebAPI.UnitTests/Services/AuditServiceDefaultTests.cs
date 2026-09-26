@@ -1,9 +1,11 @@
 using AutoMapper;
+using System.Text.Json;
 using ZDatabase.Exceptions;
 using ZDatabase.Repositories.Audit.Interfaces;
 using ZSecurity.Services;
 using ZWebAPI.Interfaces;
 using ZWebAPI.Models;
+using ZWebAPI.Models.Audit;
 using ZWebAPI.Models.Audit.OperationHistory;
 using ZWebAPI.Models.Audit.ServiceHistory;
 using ZWebAPI.Services;
@@ -252,6 +254,202 @@ namespace ZWebAPI.UnitTests.Services
 
             // Assert
             await act.Should().ThrowAsync<EntityNotFoundException<ServicesHistoryFake>>();
+        }
+
+        /// <summary>
+        /// Test the ListEntityServicesHistoryAsync should match the service name with LIKE.
+        /// </summary>
+        [Fact]
+        public async Task ListEntityServicesHistoryAsync_Pass_FiltersTheServiceNameWithLike()
+        {
+            // Arrange
+            using DbContextFake context = DbContextFakeFactory.Create();
+            AuditServiceHarness harness = new(context);
+            SeedServicesHistory(context);
+
+            IListParameters parameters = Filters((AuditFilters.Name, "\"Second\""));
+
+            // Act
+            IQueryable<ServicesHistoryListModel> result = await harness.Service
+                .ListEntityServicesHistoryAsync<AuditableEntityFake>(3, parameters);
+
+            // Assert
+            result.Select(x => x.ID).Should().Equal(2L);
+        }
+
+        /// <summary>
+        /// Test the ListEntityServicesHistoryAsync should match the author exactly.
+        /// </summary>
+        [Fact]
+        public async Task ListEntityServicesHistoryAsync_Pass_FiltersTheAuthor()
+        {
+            // Arrange
+            using DbContextFake context = DbContextFakeFactory.Create();
+            AuditServiceHarness harness = new(context);
+            SeedServicesHistory(context);
+
+            IListParameters parameters = Filters((AuditFilters.ChangedByID, "1"));
+
+            // Act
+            IQueryable<ServicesHistoryListModel> result = await harness.Service
+                .ListEntityServicesHistoryAsync<AuditableEntityFake>(3, parameters);
+
+            // Assert
+            result.Select(x => x.ChangedByName).Should().Equal("Author");
+        }
+
+        /// <summary>
+        /// Test the ListEntityServicesHistoryAsync should treat both ends of the date range as inclusive.
+        /// </summary>
+        [Fact]
+        public async Task ListEntityServicesHistoryAsync_Pass_FiltersAnInclusiveDateRange()
+        {
+            // Arrange
+            using DbContextFake context = DbContextFakeFactory.Create();
+            AuditServiceHarness harness = new(context);
+            SeedServicesHistory(context);
+
+            // The bounds are the two rows' own instants, so an exclusive comparison would return nothing.
+            IListParameters parameters = Filters(
+                (AuditFilters.ChangedOnFrom, "\"2024-01-01T00:00:00\""),
+                (AuditFilters.ChangedOnTo, "\"2024-02-01T00:00:00\""));
+
+            // Act
+            IQueryable<ServicesHistoryListModel> result = await harness.Service
+                .ListEntityServicesHistoryAsync<AuditableEntityFake>(3, parameters);
+
+            // Assert
+            result.Select(x => x.ID).Should().BeEquivalentTo(new[] { 1L, 2L });
+        }
+
+        /// <summary>
+        /// Test the ListEntityServicesHistoryAsync should narrow a date range to one end.
+        /// </summary>
+        [Fact]
+        public async Task ListEntityServicesHistoryAsync_Pass_FiltersFromADateAlone()
+        {
+            // Arrange
+            using DbContextFake context = DbContextFakeFactory.Create();
+            AuditServiceHarness harness = new(context);
+            SeedServicesHistory(context);
+
+            IListParameters parameters = Filters((AuditFilters.ChangedOnFrom, "\"2024-01-15T00:00:00\""));
+
+            // Act
+            IQueryable<ServicesHistoryListModel> result = await harness.Service
+                .ListEntityServicesHistoryAsync<AuditableEntityFake>(3, parameters);
+
+            // Assert
+            result.Select(x => x.ID).Should().Equal(2L);
+        }
+
+        /// <summary>
+        /// Test the ListEntityServicesHistoryAsync should combine the filters rather than pick one.
+        /// </summary>
+        [Fact]
+        public async Task ListEntityServicesHistoryAsync_Pass_CombinesEveryFilter()
+        {
+            // Arrange
+            using DbContextFake context = DbContextFakeFactory.Create();
+            AuditServiceHarness harness = new(context);
+            SeedServicesHistory(context);
+
+            // Each filter alone matches row 2; the author does not, so together they match nothing.
+            IListParameters parameters = Filters(
+                (AuditFilters.Name, "\"Second\""),
+                (AuditFilters.ChangedByID, "1"));
+
+            // Act
+            IQueryable<ServicesHistoryListModel> result = await harness.Service
+                .ListEntityServicesHistoryAsync<AuditableEntityFake>(3, parameters);
+
+            // Assert
+            result.Should().BeEmpty();
+        }
+
+        /// <summary>
+        /// Test the ListEntityOperationsHistoryAsync should list what a service touched beyond the
+        /// audited record unless asked otherwise.
+        /// </summary>
+        [Fact]
+        public async Task ListEntityOperationsHistoryAsync_Pass_KeepsTheRelatedRowsByDefault()
+        {
+            // Arrange
+            using DbContextFake context = DbContextFakeFactory.Create();
+            AuditServiceHarness harness = new(context);
+            SeedServicesHistory(context);
+            SeedOperationsHistory(context, nameof(AuditableEntityFake), 3);
+            SeedOperationsHistory(context, "RelatedTable", 77, id: 20);
+
+            // Act
+            IQueryable<OperationsHistoryListModel> result = await harness.Service
+                .ListEntityOperationsHistoryAsync<AuditableEntityFake>(3, 1, new ListParametersModel());
+
+            // Assert
+            result.Select(x => x.ID).Should().BeEquivalentTo(new[] { 10L, 20L });
+        }
+
+        /// <summary>
+        /// Test the ListEntityOperationsHistoryAsync should narrow the operations to the audited
+        /// record when asked.
+        /// </summary>
+        [Fact]
+        public async Task ListEntityOperationsHistoryAsync_Pass_NarrowsToTheAuditedRecordWhenAsked()
+        {
+            // Arrange
+            using DbContextFake context = DbContextFakeFactory.Create();
+            AuditServiceHarness harness = new(context);
+            SeedServicesHistory(context);
+            SeedOperationsHistory(context, nameof(AuditableEntityFake), 3);
+            SeedOperationsHistory(context, "RelatedTable", 77, id: 20);
+
+            IListParameters parameters = Filters((AuditFilters.OnlyCurrentEntity, "true"));
+
+            // Act
+            IQueryable<OperationsHistoryListModel> result = await harness.Service
+                .ListEntityOperationsHistoryAsync<AuditableEntityFake>(3, 1, parameters);
+
+            // Assert
+            result.Select(x => x.ID).Should().Equal(10L);
+        }
+
+        /// <summary>
+        /// Test the ListEntityOperationsHistoryAsync should leave the operations alone when the
+        /// filter is present but off.
+        /// </summary>
+        [Fact]
+        public async Task ListEntityOperationsHistoryAsync_Pass_KeepsTheRelatedRowsWhenTheFilterIsOff()
+        {
+            // Arrange
+            using DbContextFake context = DbContextFakeFactory.Create();
+            AuditServiceHarness harness = new(context);
+            SeedServicesHistory(context);
+            SeedOperationsHistory(context, nameof(AuditableEntityFake), 3);
+            SeedOperationsHistory(context, "RelatedTable", 77, id: 20);
+
+            IListParameters parameters = Filters((AuditFilters.OnlyCurrentEntity, "false"));
+
+            // Act
+            IQueryable<OperationsHistoryListModel> result = await harness.Service
+                .ListEntityOperationsHistoryAsync<AuditableEntityFake>(3, 1, parameters);
+
+            // Assert
+            result.Select(x => x.ID).Should().BeEquivalentTo(new[] { 10L, 20L });
+        }
+
+        private static ListParametersModel Filters(params (string Key, string Json)[] filters)
+        {
+            ListParametersModel parameters = new();
+
+            foreach ((string key, string json) in filters)
+            {
+                // A filter reaches the server as a JsonElement, and the conversion behind
+                // GetFilterValue reads it as one. Building the dictionary any other way tests a
+                // path no request takes.
+                parameters.Filters![key] = JsonDocument.Parse(json).RootElement;
+            }
+
+            return parameters;
         }
 
         private static void SeedServicesHistory(DbContextFake context)
