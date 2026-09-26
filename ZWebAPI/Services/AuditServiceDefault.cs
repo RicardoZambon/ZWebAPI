@@ -12,8 +12,10 @@ using ZDatabase.Repositories.Audit.Interfaces;
 using ZSecurity.Attributes;
 using ZSecurity.Helpers;
 using ZSecurity.Services;
+using ZWebAPI.Enums;
 using ZWebAPI.ExtensionMethods;
 using ZWebAPI.Interfaces;
+using ZWebAPI.Models.Audit;
 using ZWebAPI.Models.Audit.OperationHistory;
 using ZWebAPI.Models.Audit.ServiceHistory;
 using ZWebAPI.Services.Interfaces;
@@ -105,6 +107,10 @@ namespace ZWebAPI.Services
             where TEntity : AuditableEntity<TUsers, TUsersKey>
         {
             return (await servicesHistoryRepository.ListServicesAsync<TEntity>(entityID))
+                .TryFilter(parameters, x => x.Name, AuditFilters.Name, FilterTypes.Like)
+                .TryFilter(parameters, x => x.ChangedByID, AuditFilters.ChangedByID, FilterTypes.Equals)
+                .TryFilter(parameters, x => x.ChangedOn, AuditFilters.ChangedOnFrom, FilterTypes.GreatherThanOrEqual)
+                .TryFilter(parameters, x => x.ChangedOn, AuditFilters.ChangedOnTo, FilterTypes.LessThanOrEqual)
                 .GetRange(parameters)
                 .ProjectTo<ServicesHistoryListModel>(mapper.ConfigurationProvider);
         }
@@ -127,9 +133,18 @@ namespace ZWebAPI.Services
 
             // The returned operations must contain the entity identifier and the table name.
             EntityEntry<TEntity> entry = dbContext.Entry(entity);
-            if (!await operations.AnyAsync(x => EF.Functions.Like(x.TableName ?? string.Empty, entry.Metadata.GetTableName() ?? string.Empty) && x.EntityID == entityID))
+            string tableName = entry.Metadata.GetTableName() ?? string.Empty;
+
+            if (!await operations.AnyAsync(x => EF.Functions.Like(x.TableName ?? string.Empty, tableName) && x.EntityID == entityID))
             {
                 return Enumerable.Empty<OperationsHistoryListModel>().AsQueryable();
+            }
+
+            // A service writes to more than one table, and listing all of it is what shows the rows
+            // a change also touched. Narrowed only when asked.
+            if (parameters.GetFilterValue<bool>(AuditFilters.OnlyCurrentEntity) == true)
+            {
+                operations = operations.Where(x => EF.Functions.Like(x.TableName ?? string.Empty, tableName) && x.EntityID == entityID);
             }
 
             return operations
