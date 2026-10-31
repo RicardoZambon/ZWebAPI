@@ -147,9 +147,16 @@ namespace ZWebAPI.Services
                 operations = operations.Where(x => EF.Functions.Like(x.TableName ?? string.Empty, tableName) && x.EntityID == entityID);
             }
 
-            return operations
+            List<OperationsHistoryListModel> page = await operations
                 .GetRange(parameters)
-                .ProjectTo<OperationsHistoryListModel>(mapper.ConfigurationProvider);
+                .ProjectTo<OperationsHistoryListModel>(mapper.ConfigurationProvider)
+                .ToListAsync();
+
+            // An update stores only the fields it changed. The full record is rebuilt here, from the
+            // rest of its history, so a client can show it whole.
+            await OperationsHistoryFieldsBuilder.FillFieldsAsync<TOperationsHistory>(dbContext, page);
+
+            return page.AsQueryable();
         }
         #endregion
 
