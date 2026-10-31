@@ -1,4 +1,6 @@
-﻿namespace ZWebAPI.Models.Audit.OperationHistory
+﻿using AutoMapper.Configuration.Annotations;
+
+namespace ZWebAPI.Models.Audit.OperationHistory
 {
     /// <summary>
     /// List model for <see cref="ZDatabase.Entities.Audit.OperationsHistory{TServicesHistory, TOperationsHistory, TUsers, TUsersKey}"/>.
@@ -20,6 +22,21 @@
         /// The name of the entity.
         /// </value>
         public string? EntityName { get; set; }
+
+        /// <summary>
+        /// Gets or sets every field of the record, before and after the operation.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="NewValues"/> and <see cref="OldValues"/> hold only what the operation wrote,
+        /// which for an update is the changed fields alone. These are rebuilt from the record's
+        /// whole history, so an update shows the full record too. Not mapped: the audit service
+        /// fills it after the query.
+        /// </remarks>
+        /// <value>
+        /// The fields, or <c>null</c> when they could not be rebuilt.
+        /// </value>
+        [Ignore]
+        public IList<OperationsHistoryFieldModel>? Fields { get; set; }
 
         /// <summary>
         /// Gets or sets the identifier.

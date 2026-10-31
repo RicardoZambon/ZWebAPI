@@ -437,6 +437,54 @@ namespace ZWebAPI.UnitTests.Services
             result.Select(x => x.ID).Should().BeEquivalentTo(new[] { 10L, 20L });
         }
 
+        /// <summary>
+        /// Test the ListEntityOperationsHistoryAsync should return the whole record for an update,
+        /// rebuilding what the update did not write from the record as it is now.
+        /// </summary>
+        [Fact]
+        public async Task ListEntityOperationsHistoryAsync_Pass_RebuildsTheWholeRecordOfAnUpdate()
+        {
+            // Arrange
+            using DbContextFake context = DbContextFakeFactory.Create();
+            AuditServiceHarness harness = new(context);
+            SeedServicesHistory(context);
+            context.OperationsHistory.Add(new OperationsHistoryFake
+            {
+                ID = 10,
+                ServiceHistoryID = 1,
+                TableName = nameof(AuditableEntityFake),
+                EntityName = nameof(AuditableEntityFake),
+                EntityID = 3,
+                OperationType = "Modified",
+                OldValues = """{"Name":"Zeta"}""",
+                NewValues = """{"Name":"Alpha"}""",
+            });
+            context.SaveChanges();
+            context.ChangeTracker.Clear();
+
+            // Act
+            IQueryable<OperationsHistoryListModel> result = await harness.Service
+                .ListEntityOperationsHistoryAsync<AuditableEntityFake>(3, 1, new ListParametersModel());
+
+            // Assert
+            IList<OperationsHistoryFieldModel> fields = result.Single().Fields!;
+
+            OperationsHistoryFieldModel name = fields.Single(x => x.Name == nameof(AuditableEntityFake.Name));
+            name.IsChanged.Should().BeTrue();
+            name.IsSystem.Should().BeFalse();
+            name.Type.Should().Be(OperationsHistoryFieldTypes.Text);
+            name.OldValue!.Value.GetString().Should().Be("Zeta");
+            name.NewValue!.Value.GetString().Should().Be("Alpha");
+
+            OperationsHistoryFieldModel id = fields.Single(x => x.Name == nameof(AuditableEntityFake.ID));
+            id.IsChanged.Should().BeFalse();
+            id.IsSystem.Should().BeTrue();
+            id.Type.Should().Be(OperationsHistoryFieldTypes.Key);
+            id.NewValue!.Value.GetInt64().Should().Be(3);
+
+            fields.Single(x => x.Name == nameof(AuditableEntityFake.CreatedByID)).IsSystem.Should().BeTrue();
+        }
+
         private static ListParametersModel Filters(params (string Key, string Json)[] filters)
         {
             ListParametersModel parameters = new();
