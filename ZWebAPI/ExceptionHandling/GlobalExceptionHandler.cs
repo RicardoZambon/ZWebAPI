@@ -6,7 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using AspNetCoreExceptionHandler = Microsoft.AspNetCore.Diagnostics.IExceptionHandler;
-using ZWebAPI.Interfaces;
+using ZDatabase.Services.Interfaces;
 
 namespace ZWebAPI.ExceptionHandling
 {
