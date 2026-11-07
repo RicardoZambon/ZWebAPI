@@ -1,6 +1,5 @@
 // Ignore Spelling: Queryable
 
-using AutoMapper.QueryableExtensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
 using ZWebAPI.Exporters;
@@ -22,7 +21,7 @@ namespace ZWebAPI.ExtensionMethods
         /// <typeparam name="TDest">The list model type exposed to the exporter.</typeparam>
         /// <param name="query">The query.</param>
         /// <param name="parameters">The parameters.</param>
-        /// <param name="mapperConfig">The AutoMapper configuration provider used to project <typeparamref name="TSrc"/> into <typeparamref name="TDest"/>.</param>
+        /// <param name="projection">Projects the filtered and sorted <typeparamref name="TSrc"/> query into <typeparamref name="TDest"/>, for example <c>q => q.Select(x => new Model { ... })</c> or a source-generated projection. It runs after the filters, so they can use every field of <typeparamref name="TSrc"/>.</param>
         /// <param name="listExporter">The exporter that turns the projected rows into the final file payload.</param>
         /// <param name="format">The desired file format.</param>
         /// <param name="fileBaseName">The file name without extension.</param>
@@ -32,14 +31,14 @@ namespace ZWebAPI.ExtensionMethods
         public static async Task<ExportResult> ToExportResultAsync<TSrc, TDest>(
             this IQueryable<TSrc> query,
             IListParameters parameters,
-            AutoMapper.IConfigurationProvider mapperConfig,
+            Func<IQueryable<TSrc>, IQueryable<TDest>> projection,
             IListExporter listExporter,
             ExportFormat format,
             string fileBaseName)
         {
             ArgumentNullException.ThrowIfNull(query);
             ArgumentNullException.ThrowIfNull(parameters);
-            ArgumentNullException.ThrowIfNull(mapperConfig);
+            ArgumentNullException.ThrowIfNull(projection);
             ArgumentNullException.ThrowIfNull(listExporter);
 
             parameters.StartRow = 0;
@@ -53,7 +52,7 @@ namespace ZWebAPI.ExtensionMethods
                 throw new ExportRowLimitExceededException(ExportConstants.MaxExportRows);
             }
 
-            List<TDest> items = await ToListAsync(filtered.ProjectTo<TDest>(mapperConfig));
+            List<TDest> items = await ToListAsync(projection(filtered));
 
             return listExporter.Export(items, format, fileBaseName);
         }
@@ -104,23 +103,21 @@ namespace ZWebAPI.ExtensionMethods
         /// <typeparam name="TDest">The list model type returned to the client.</typeparam>
         /// <param name="query">The query.</param>
         /// <param name="parameters">The parameters.</param>
-        /// <param name="mapperConfig">The AutoMapper configuration provider used to project <typeparamref name="TSrc"/> into <typeparamref name="TDest"/>.</param>
+        /// <param name="projection">Projects the filtered and sorted <typeparamref name="TSrc"/> query into <typeparamref name="TDest"/>, for example <c>q => q.Select(x => new Model { ... })</c> or a source-generated projection. It runs after the filters, so they can use every field of <typeparamref name="TSrc"/>.</param>
         /// <returns>A <see cref="ListResult{TDest}"/> with the paginated items and the total unpaginated row count.</returns>
         /// <exception cref="ArgumentNullException">When any required argument is <c>null</c>.</exception>
         public static async Task<ListResult<TDest>> ToListResultAsync<TSrc, TDest>(
             this IQueryable<TSrc> query,
             IListParameters parameters,
-            AutoMapper.IConfigurationProvider mapperConfig)
+            Func<IQueryable<TSrc>, IQueryable<TDest>> projection)
         {
             ArgumentNullException.ThrowIfNull(query);
             ArgumentNullException.ThrowIfNull(parameters);
-            ArgumentNullException.ThrowIfNull(mapperConfig);
+            ArgumentNullException.ThrowIfNull(projection);
 
             int totalRows = await CountAsync(query);
 
-            List<TDest> items = await ToListAsync(query
-                .GetRange(parameters)
-                .ProjectTo<TDest>(mapperConfig));
+            List<TDest> items = await ToListAsync(projection(query.GetRange(parameters)));
 
             return ListResult<TDest>.From(items, totalRows);
         }

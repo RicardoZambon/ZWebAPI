@@ -1,7 +1,7 @@
-﻿using AutoMapper;
-using AutoMapper.QueryableExtensions;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.Extensions.Options;
+using System.Linq.Expressions;
 using System.Reflection;
 using ZDatabase.Entities;
 using ZDatabase.Entities.Audit;
@@ -30,10 +30,21 @@ namespace ZWebAPI.Services
         where TUsersKey : struct
     {
         #region Variables
+        private static readonly Expression<Func<TOperationsHistory, OperationsHistoryListModel>> OperationsHistoryProjection = x => new OperationsHistoryListModel
+        {
+            EntityID = x.EntityID,
+            EntityName = x.EntityName,
+            ID = x.ID,
+            NewValues = x.NewValues,
+            OldValues = x.OldValues,
+            OperationType = x.OperationType,
+            TableName = x.TableName,
+        };
+
         private readonly IDbContext dbContext;
-        private readonly IMapper mapper;
         private readonly IOperationsHistoryRepository<TServicesHistory, TOperationsHistory, TUsers, TUsersKey> operationsHistoryRepository;
         private readonly ISecurityHandler securityHandler;
+        private readonly Expression<Func<TServicesHistory, ServicesHistoryListModel>> servicesHistoryProjection;
         private readonly IServicesHistoryRepository<TServicesHistory, TOperationsHistory, TUsers, TUsersKey> servicesHistoryRepository;
         #endregion
 
@@ -52,22 +63,22 @@ namespace ZWebAPI.Services
         /// Initializes a new instance of the <see cref="AuditServiceDefault{TServicesHistory, TOperationsHistory, TUsers, TUsersKey}"/> class.
         /// </summary>
         /// <param name="dbContext">The <see cref="IDbContext"/> instance.</param>
-        /// <param name="mapper">The <see cref="AutoMapper.IMapper"/> instance.</param>
         /// <param name="operationsHistoryRepository">The <see cref="ZDatabase.Repositories.Audit.Interfaces.IOperationsHistoryRepository{TServicesHistory, TOperationsHistory, TUsers, TUsersKey}"/> instance.</param>
+        /// <param name="options">The audit service options, which say how to read a user's name.</param>
         /// <param name="securityHandler">The <see cref="ZDatabase.Services.Interfaces.IAuditHandler"/> instance.</param>
         /// <param name="servicesHistoryRepository">The <see cref="ZDatabase.Repositories.Audit.Interfaces.IServicesHistoryRepository{TServicesHistory, TOperationsHistory, TUsers, TUsersKey}"/> instance.</param>
         public AuditServiceDefault(
             IDbContext dbContext,
-            IMapper mapper,
             IOperationsHistoryRepository<TServicesHistory, TOperationsHistory, TUsers, TUsersKey> operationsHistoryRepository,
+            IOptions<AuditServiceOptions<TUsers>> options,
             ISecurityHandler securityHandler,
             IServicesHistoryRepository<TServicesHistory, TOperationsHistory, TUsers, TUsersKey> servicesHistoryRepository)
         {
             this.dbContext = dbContext;
-            this.mapper = mapper;
             this.operationsHistoryRepository = operationsHistoryRepository;
             this.securityHandler = securityHandler;
             this.servicesHistoryRepository = servicesHistoryRepository;
+            servicesHistoryProjection = BuildServicesHistoryProjection(options.Value.UserNameSelector);
         }
         #endregion
 
@@ -112,7 +123,7 @@ namespace ZWebAPI.Services
                 .TryFilter(parameters, x => x.ChangedOn, AuditFilters.ChangedOnFrom, FilterTypes.GreatherThanOrEqual)
                 .TryFilter(parameters, x => x.ChangedOn, AuditFilters.ChangedOnTo, FilterTypes.LessThanOrEqual)
                 .GetRange(parameters)
-                .ProjectTo<ServicesHistoryListModel>(mapper.ConfigurationProvider);
+                .Select(servicesHistoryProjection);
         }
 
         /// <inheritdoc />
@@ -149,7 +160,7 @@ namespace ZWebAPI.Services
 
             List<OperationsHistoryListModel> page = await operations
                 .GetRange(parameters)
-                .ProjectTo<OperationsHistoryListModel>(mapper.ConfigurationProvider)
+                .Select(OperationsHistoryProjection)
                 .ToListAsync();
 
             // An update stores only the fields it changed. The full record is rebuilt here, from the
@@ -161,6 +172,39 @@ namespace ZWebAPI.Services
         #endregion
 
         #region Private methods
+        private static Expression<Func<TServicesHistory, ServicesHistoryListModel>> BuildServicesHistoryProjection(Expression<Func<TUsers, string?>>? userNameSelector)
+        {
+            Expression<Func<TServicesHistory, string?, ServicesHistoryListModel>> template = (x, changedByName) => new ServicesHistoryListModel
+            {
+                ChangedByName = changedByName,
+                ChangedOn = x.ChangedOn,
+                ID = x.ID,
+                Name = x.Name,
+            };
+
+            ParameterExpression history = template.Parameters[0];
+
+            // The selector is spliced into the template, reading the user through ChangedBy, so the
+            // whole projection is still one expression the database query can translate.
+            Expression changedByName = userNameSelector is null
+                ? Expression.Constant(null, typeof(string))
+                : new ParameterReplacer(userNameSelector.Parameters[0], Expression.Property(history, nameof(ServicesHistory<TServicesHistory, TOperationsHistory, TUsers, TUsersKey>.ChangedBy)))
+                    .Visit(userNameSelector.Body);
+
+            Expression body = new ParameterReplacer(template.Parameters[1], changedByName).Visit(template.Body);
+
+            return Expression.Lambda<Func<TServicesHistory, ServicesHistoryListModel>>(body, history);
+        }
+        #endregion
+
+        #region Nested types
+        private sealed class ParameterReplacer(ParameterExpression parameter, Expression replacement) : ExpressionVisitor
+        {
+            protected override Expression VisitParameter(ParameterExpression node)
+            {
+                return node == parameter ? replacement : base.VisitParameter(node);
+            }
+        }
         #endregion
     }
 }
