@@ -1,10 +1,17 @@
 const isValidation = process.env.SEMANTIC_RELEASE_VALIDATION === 'true';
 
+// The angular parser accepts only word characters in the type, so 'breaking-changes' was never
+// read and its release rule never fired. This header pattern also accepts hyphens.
+const parserOpts = {
+  headerPattern: /^([\w-]*)(?:\((.*)\))?: (.*)$/,
+};
+
 const plugins = [
   [
     '@semantic-release/commit-analyzer',
     {
       preset: 'angular',
+      parserOpts,
       releaseRules: [
         { type: 'bug', release: 'patch' },
         { type: 'fix', release: 'patch' },
@@ -15,7 +22,7 @@ const plugins = [
       ],
     },
   ],
-  '@semantic-release/release-notes-generator',
+  ['@semantic-release/release-notes-generator', { preset: 'angular', parserOpts }],
 ];
 
 if (!isValidation) {
