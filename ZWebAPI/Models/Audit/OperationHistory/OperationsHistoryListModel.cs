@@ -1,6 +1,4 @@
-﻿using AutoMapper.Configuration.Annotations;
-
-namespace ZWebAPI.Models.Audit.OperationHistory
+﻿namespace ZWebAPI.Models.Audit.OperationHistory
 {
     /// <summary>
     /// List model for <see cref="ZDatabase.Entities.Audit.OperationsHistory{TServicesHistory, TOperationsHistory, TUsers, TUsersKey}"/>.
@@ -35,7 +33,6 @@ namespace ZWebAPI.Models.Audit.OperationHistory
         /// <value>
         /// The fields, or <c>null</c> when they could not be rebuilt.
         /// </value>
-        [Ignore]
         public IList<OperationsHistoryFieldModel>? Fields { get; set; }
 
         /// <summary>

@@ -1,4 +1,4 @@
-using AutoMapper;
+using Microsoft.Extensions.Options;
 using System.Text.Json;
 using ZDatabase.Exceptions;
 using ZDatabase.Repositories.Audit.Interfaces;
@@ -132,6 +132,30 @@ namespace ZWebAPI.UnitTests.Services
             rows[0].ID.Should().Be(2);
             rows[0].Name.Should().Be("IService\\Second");
             rows[0].ChangedByName.Should().Be("Reviewer");
+        }
+
+        /// <summary>
+        /// Test the ListEntityServicesHistoryAsync should leave the user name empty when no selector is configured.
+        /// </summary>
+        [Fact]
+        public async Task ListEntityServicesHistoryAsync_Pass_LeavesTheUserNameEmptyWithoutASelector()
+        {
+            // Arrange
+            using DbContextFake context = DbContextFakeFactory.Create();
+            AuditServiceHarness harness = new(context, hasUserNameSelector: false);
+            SeedServicesHistory(context);
+
+            IListParameters parameters = new ListParametersModel { StartRow = 1, EndRow = 1 };
+
+            // Act
+            IQueryable<ServicesHistoryListModel> result = await harness.Service
+                .ListEntityServicesHistoryAsync<AuditableEntityFake>(3, parameters);
+
+            // Assert
+            List<ServicesHistoryListModel> rows = [.. result];
+            rows.Should().ContainSingle();
+            rows[0].Name.Should().Be("IService\\Second");
+            rows[0].ChangedByName.Should().BeNull();
         }
 
         /// <summary>
@@ -533,10 +557,8 @@ namespace ZWebAPI.UnitTests.Services
 
         private sealed class AuditServiceHarness
         {
-            internal AuditServiceHarness(DbContextFake context)
+            internal AuditServiceHarness(DbContextFake context, bool hasUserNameSelector = true)
             {
-                IMapper mapper = MapperFakeFactory.Create();
-
                 SecurityHandler = Substitute.For<ISecurityHandler>();
 
                 OperationsHistoryRepository = Substitute.For<IOperationsHistoryRepository<ServicesHistoryFake, OperationsHistoryFake, UsersFake, long>>();
@@ -557,8 +579,8 @@ namespace ZWebAPI.UnitTests.Services
 
                 Service = new AuditServiceDefault<ServicesHistoryFake, OperationsHistoryFake, UsersFake, long>(
                     context,
-                    mapper,
                     OperationsHistoryRepository,
+                    Options.Create(new AuditServiceOptions<UsersFake> { UserNameSelector = hasUserNameSelector ? user => user.Name : null }),
                     SecurityHandler,
                     ServicesHistoryRepository);
             }

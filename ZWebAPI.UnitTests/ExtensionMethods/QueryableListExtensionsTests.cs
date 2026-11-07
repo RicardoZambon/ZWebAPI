@@ -1,4 +1,3 @@
-using AutoMapper;
 using ZWebAPI.Exporters;
 using ZWebAPI.Exporters.Exceptions;
 using ZWebAPI.ExtensionMethods;
@@ -24,7 +23,7 @@ namespace ZWebAPI.UnitTests.ExtensionMethods
             // Arrange
             using DbContextFake context = Seed();
             IListParameters parameters = new ListParametersModel();
-            IConfigurationProvider mapperConfig = MapperFakeFactory.CreateConfiguration();
+            Func<IQueryable<EntityFake>, IQueryable<EntityListModelFake>> projection = ProjectionFakeFactory.ToEntityListModel;
             ExportResult expected = new([1], "text/csv", "report.csv");
             IListExporter listExporter = Substitute.For<IListExporter>();
             List<EntityListModelFake>? captured = null;
@@ -39,7 +38,7 @@ namespace ZWebAPI.UnitTests.ExtensionMethods
 
             // Act
             ExportResult result = await context.Entities
-                .ToExportResultAsync<EntityFake, EntityListModelFake>(parameters, mapperConfig, listExporter, ExportFormat.Csv, "report");
+                .ToExportResultAsync<EntityFake, EntityListModelFake>(parameters, projection, listExporter, ExportFormat.Csv, "report");
 
             // Assert
             result.Should().BeSameAs(expected);
@@ -57,7 +56,7 @@ namespace ZWebAPI.UnitTests.ExtensionMethods
             // Arrange
             using DbContextFake context = Seed();
             IListParameters parameters = new ListParametersModel { StartRow = 1, EndRow = 1 };
-            IConfigurationProvider mapperConfig = MapperFakeFactory.CreateConfiguration();
+            Func<IQueryable<EntityFake>, IQueryable<EntityListModelFake>> projection = ProjectionFakeFactory.ToEntityListModel;
             IListExporter listExporter = Substitute.For<IListExporter>();
             List<EntityListModelFake>? captured = null;
 
@@ -71,7 +70,7 @@ namespace ZWebAPI.UnitTests.ExtensionMethods
 
             // Act
             await context.Entities
-                .ToExportResultAsync<EntityFake, EntityListModelFake>(parameters, mapperConfig, listExporter, ExportFormat.Csv, "report");
+                .ToExportResultAsync<EntityFake, EntityListModelFake>(parameters, projection, listExporter, ExportFormat.Csv, "report");
 
             // Assert
             parameters.StartRow.Should().Be(0);
@@ -88,12 +87,12 @@ namespace ZWebAPI.UnitTests.ExtensionMethods
             // Arrange
             IQueryable<EntityFake> query = OversizedQuery();
             IListParameters parameters = new ListParametersModel();
-            IConfigurationProvider mapperConfig = MapperFakeFactory.CreateConfiguration();
+            Func<IQueryable<EntityFake>, IQueryable<EntityListModelFake>> projection = ProjectionFakeFactory.ToEntityListModel;
             IListExporter listExporter = Substitute.For<IListExporter>();
 
             // Act
             Func<Task> act = () => query
-                .ToExportResultAsync<EntityFake, EntityListModelFake>(parameters, mapperConfig, listExporter, ExportFormat.Csv, "report");
+                .ToExportResultAsync<EntityFake, EntityListModelFake>(parameters, projection, listExporter, ExportFormat.Csv, "report");
 
             // Assert
             (await act.Should().ThrowAsync<ExportRowLimitExceededException>())
@@ -109,19 +108,19 @@ namespace ZWebAPI.UnitTests.ExtensionMethods
         [Theory]
         [InlineData("query")]
         [InlineData("parameters")]
-        [InlineData("mapperConfig")]
+        [InlineData("projection")]
         [InlineData("listExporter")]
         public async Task ToExportResultAsyncProjecting_Fail_ThrowsForMissingArguments(string missing)
         {
             // Arrange
             IQueryable<EntityFake>? query = missing == "query" ? null : Array.Empty<EntityFake>().AsQueryable();
             IListParameters? parameters = missing == "parameters" ? null : new ListParametersModel();
-            IConfigurationProvider? mapperConfig = missing == "mapperConfig" ? null : MapperFakeFactory.CreateConfiguration();
+            Func<IQueryable<EntityFake>, IQueryable<EntityListModelFake>>? projection = missing == "projection" ? null : ProjectionFakeFactory.ToEntityListModel;
             IListExporter? listExporter = missing == "listExporter" ? null : Substitute.For<IListExporter>();
 
             // Act
             Func<Task> act = () => query!
-                .ToExportResultAsync<EntityFake, EntityListModelFake>(parameters!, mapperConfig!, listExporter!, ExportFormat.Csv, "report");
+                .ToExportResultAsync<EntityFake, EntityListModelFake>(parameters!, projection!, listExporter!, ExportFormat.Csv, "report");
 
             // Assert
             (await act.Should().ThrowAsync<ArgumentNullException>())
@@ -217,12 +216,12 @@ namespace ZWebAPI.UnitTests.ExtensionMethods
             // Arrange
             using DbContextFake context = Seed();
             IListParameters parameters = new ListParametersModel { StartRow = 1, EndRow = 1 };
-            IConfigurationProvider mapperConfig = MapperFakeFactory.CreateConfiguration();
+            Func<IQueryable<EntityFake>, IQueryable<EntityListModelFake>> projection = ProjectionFakeFactory.ToEntityListModel;
 
             // Act
             ListResult<EntityListModelFake> result = await context.Entities
                 .OrderBy(x => x.ID)
-                .ToListResultAsync<EntityFake, EntityListModelFake>(parameters, mapperConfig);
+                .ToListResultAsync<EntityFake, EntityListModelFake>(parameters, projection);
 
             // Assert
             result.TotalRows.Should().Be(3);
@@ -238,11 +237,11 @@ namespace ZWebAPI.UnitTests.ExtensionMethods
             // Arrange
             using DbContextFake context = DbContextFakeFactory.Create();
             IListParameters parameters = new ListParametersModel();
-            IConfigurationProvider mapperConfig = MapperFakeFactory.CreateConfiguration();
+            Func<IQueryable<EntityFake>, IQueryable<EntityListModelFake>> projection = ProjectionFakeFactory.ToEntityListModel;
 
             // Act
             ListResult<EntityListModelFake> result = await context.Entities
-                .ToListResultAsync<EntityFake, EntityListModelFake>(parameters, mapperConfig);
+                .ToListResultAsync<EntityFake, EntityListModelFake>(parameters, projection);
 
             // Assert
             result.TotalRows.Should().Be(0);
@@ -256,16 +255,16 @@ namespace ZWebAPI.UnitTests.ExtensionMethods
         [Theory]
         [InlineData("query")]
         [InlineData("parameters")]
-        [InlineData("mapperConfig")]
+        [InlineData("projection")]
         public async Task ToListResultAsyncProjecting_Fail_ThrowsForMissingArguments(string missing)
         {
             // Arrange
             IQueryable<EntityFake>? query = missing == "query" ? null : Array.Empty<EntityFake>().AsQueryable();
             IListParameters? parameters = missing == "parameters" ? null : new ListParametersModel();
-            IConfigurationProvider? mapperConfig = missing == "mapperConfig" ? null : MapperFakeFactory.CreateConfiguration();
+            Func<IQueryable<EntityFake>, IQueryable<EntityListModelFake>>? projection = missing == "projection" ? null : ProjectionFakeFactory.ToEntityListModel;
 
             // Act
-            Func<Task> act = () => query!.ToListResultAsync<EntityFake, EntityListModelFake>(parameters!, mapperConfig!);
+            Func<Task> act = () => query!.ToListResultAsync<EntityFake, EntityListModelFake>(parameters!, projection!);
 
             // Assert
             (await act.Should().ThrowAsync<ArgumentNullException>())

@@ -72,3 +72,24 @@ app.MapDefaultHealthChecks(); // "/health" and "/health/ready"
   process.
 - `/health/ready` is the readiness probe. It runs the checks tagged `ready`, which by default is the
   database check: `CanConnectAsync` on the registered `IDbContext`.
+
+## Lists and audit history
+
+ZWebAPI does not depend on a mapping library. Where it turns entities into list models, the
+application passes the projection:
+
+```csharp
+// Filters and sort run on the entity, then the projection turns the page into list models.
+ListResult<UserListModel> result = await query.ToListResultAsync(parameters,
+    q => q.Select(x => new UserListModel { ID = x.ID, Name = x.Name }));
+```
+
+The projection is a `Func<IQueryable<TSrc>, IQueryable<TDest>>`, so a hand-written `Select` or a
+source-generated projection method both fit.
+
+The audit service projects its own list models. It only needs to know how to read a user's name,
+because ZWebAPI does not know the application's user type:
+
+```csharp
+builder.Services.AddAuditService<ServicesHistory, OperationsHistory, User, long>(user => user.Name);
+```
