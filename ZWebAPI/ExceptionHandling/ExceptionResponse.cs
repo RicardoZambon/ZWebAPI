@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using ZWebAPI.Interfaces;
+using ZDatabase.Services.Interfaces;
 
 namespace ZWebAPI.ExceptionHandling
 {

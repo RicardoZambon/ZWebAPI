@@ -4,9 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using ZDatabase.Services.Interfaces;
 using ZSecurity.Exceptions;
 using ZWebAPI.ExceptionHandling;
-using ZWebAPI.Interfaces;
 
 namespace ZWebAPI.UnitTests.ExceptionHandling
 {

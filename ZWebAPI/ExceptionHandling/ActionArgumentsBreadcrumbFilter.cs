@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Extensions.DependencyInjection;
-using ZWebAPI.Interfaces;
+using ZDatabase.Services.Interfaces;
 
 namespace ZWebAPI.ExceptionHandling
 {

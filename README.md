@@ -49,7 +49,8 @@ Default mappings:
 A mapping matches the exact type first, then an open generic, then each base type.
 
 Every problem carries `traceId`. When the response is a fault (500 and above, or a mapping that
-calls `Capture()`), the exception goes to the `IExceptionReporter` registered by the application,
+calls `Capture()`), the exception goes to the `IExceptionReporter` registered by the application
+(it lives in `ZDatabase.Services.Interfaces`, so a core library can implement it without ZWebAPI),
 and the identifier it returns is written as `errorId`. Register the reporter as scoped. Without one,
 nothing is reported.
 
