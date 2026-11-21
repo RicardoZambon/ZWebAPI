@@ -79,10 +79,19 @@ ZWebAPI does not depend on a mapping library. Where it turns entities into list 
 application passes the projection:
 
 ```csharp
-// Filters and sort run on the entity, then the projection turns the page into list models.
+// Filters run on the entity. The projection turns it into list models, then sort and paging run on them.
 ListResult<UserListModel> result = await query.ToListResultAsync(parameters,
     q => q.Select(x => new UserListModel { ID = x.ID, Name = x.Name }));
 ```
+
+Paging and sort come from the list parameters:
+
+- `StartRow` is how many rows to skip. `EndRow` is how many rows to take.
+- A page never has more than `ListPaging.MaxPageSize` rows, 1000 by default. A request with no
+  `EndRow` gets that many. Change it once at startup if needed.
+- `Sort` maps a list model field to `asc` or `desc`, for example `{ "name": "desc" }`. Fields apply
+  in the order sent. Unknown fields are ignored. Ties are broken by `ID`, so pages stay stable.
+- Exports apply the same sort but are not paged. They stop at their own row cap instead.
 
 The projection is a `Func<IQueryable<TSrc>, IQueryable<TDest>>`, so a hand-written `Select` or a
 source-generated projection method both fit.

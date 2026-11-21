@@ -333,6 +333,56 @@ namespace ZWebAPI.UnitTests.ExtensionMethods
                 .WithParameterName(missing);
         }
 
+        /// <summary>
+        /// Test the projecting ToListResultAsync should sort by a field of the list model before paging.
+        /// </summary>
+        [Fact]
+        public async Task ToListResultAsync_Pass_SortsByTheListModelBeforePaging()
+        {
+            // Arrange
+            using DbContextFake context = Seed();
+            IListParameters parameters = new ListParametersModel { EndRow = 2 };
+            parameters.Sort["name"] = "desc";
+
+            // Act
+            ListResult<EntityListModelFake> result = await context.Entities
+                .ToListResultAsync<EntityFake, EntityListModelFake>(parameters, ProjectionFakeFactory.ToEntityListModel);
+
+            // Assert
+            result.TotalRows.Should().Be(3);
+            result.Items.Select(x => x.Name).Should().Equal("Charlie", "Beta");
+        }
+
+        /// <summary>
+        /// Test the ToExportResultAsync should export every row, past the list page cap, in the sorted order.
+        /// </summary>
+        [Fact]
+        public async Task ToExportResultAsync_Pass_ExportsPastThePageCapInTheSortedOrder()
+        {
+            // Arrange
+            int rowCount = ListPaging.MaxPageSize + 5;
+            IQueryable<EntityFake> query = Enumerable.Range(1, rowCount).Select(x => new EntityFake { ID = x }).AsQueryable();
+            IListParameters parameters = new ListParametersModel();
+            parameters.Sort["ID"] = "desc";
+            IListExporter listExporter = Substitute.For<IListExporter>();
+            List<EntityFake>? captured = null;
+
+            listExporter
+                .Export(Arg.Any<IEnumerable<EntityFake>>(), Arg.Any<ExportFormat>(), Arg.Any<string>())
+                .Returns(x =>
+                {
+                    captured = [.. x.ArgAt<IEnumerable<EntityFake>>(0)];
+                    return new ExportResult([], "text/csv", "report.csv");
+                });
+
+            // Act
+            await query.ToExportResultAsync(parameters, listExporter, ExportFormat.Csv, "report");
+
+            // Assert
+            captured.Should().HaveCount(rowCount);
+            captured![0].ID.Should().Be(rowCount);
+        }
+
         private static IQueryable<EntityFake> OversizedQuery()
         {
             return Enumerable

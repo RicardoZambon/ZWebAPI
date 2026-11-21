@@ -67,43 +67,196 @@ namespace ZWebAPI.UnitTests.ExtensionMethods
         }
 
         /// <summary>
-        /// Test the GetRange should leave the query untouched for non positive boundaries.
+        /// Test the GetRange should take the page cap for non positive boundaries.
         /// </summary>
         /// <param name="startRow">The start row.</param>
         /// <param name="endRow">The end row.</param>
         [Theory]
         [InlineData(0, 0)]
         [InlineData(-1, -1)]
-        public void GetRange_Pass_LeavesTheQueryUntouchedForNonPositiveBoundaries(int startRow, int endRow)
+        public void GetRange_Pass_TakesThePageCapForNonPositiveBoundaries(int startRow, int endRow)
         {
             // Arrange
             using DbContextFake context = Seed();
             IListParameters parameters = new ListParametersModel { StartRow = startRow, EndRow = endRow };
-            IQueryable<EntityFake> query = context.Entities.OrderBy(x => x.ID);
 
             // Act
-            IQueryable<EntityFake> result = query.GetRange(parameters);
+            IQueryable<EntityFake> result = context.Entities.OrderBy(x => x.ID).GetRange(parameters, 2);
 
             // Assert
-            result.Should().BeSameAs(query);
-            result.Select(x => x.ID).Should().Equal(1L, 2L, 3L);
+            result.Select(x => x.ID).Should().Equal(1L, 2L);
         }
 
         /// <summary>
-        /// Test the GetRange should leave the query untouched when the parameters are null.
+        /// Test the GetRange should take the page cap when the parameters are null.
         /// </summary>
         [Fact]
-        public void GetRange_Pass_LeavesTheQueryUntouchedWhenTheParametersAreNull()
+        public void GetRange_Pass_TakesThePageCapWhenTheParametersAreNull()
+        {
+            // Arrange
+            using DbContextFake context = Seed();
+
+            // Act
+            IQueryable<EntityFake> result = context.Entities.OrderBy(x => x.ID).GetRange(null!, 2);
+
+            // Assert
+            result.Select(x => x.ID).Should().Equal(1L, 2L);
+        }
+
+        /// <summary>
+        /// Test the GetRange should never take more than the page cap, whatever the end row asks for.
+        /// </summary>
+        [Fact]
+        public void GetRange_Pass_ClampsTheEndRowToThePageCap()
+        {
+            // Arrange
+            using DbContextFake context = Seed();
+            IListParameters parameters = new ListParametersModel { EndRow = int.MaxValue };
+
+            // Act
+            IQueryable<EntityFake> result = context.Entities.OrderBy(x => x.ID).GetRange(parameters, 2);
+
+            // Assert
+            result.Select(x => x.ID).Should().Equal(1L, 2L);
+        }
+
+        /// <summary>
+        /// Test the GetRange should use <see cref="ListPaging.MaxPageSize"/> when no cap is given.
+        /// </summary>
+        [Fact]
+        public void GetRange_Pass_UsesTheSharedPageCapByDefault()
+        {
+            // Arrange
+            IQueryable<int> query = Enumerable.Range(1, ListPaging.MaxPageSize + 5).AsQueryable();
+
+            // Act
+            IQueryable<int> result = query.GetRange(new ListParametersModel());
+
+            // Assert
+            result.Should().HaveCount(ListPaging.MaxPageSize);
+        }
+
+        /// <summary>
+        /// Test the GetRange should reject a cap of zero or less.
+        /// </summary>
+        /// <param name="maxPageSize">The cap.</param>
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public void GetRange_Fail_ThrowsForANonPositivePageCap(int maxPageSize)
+        {
+            // Arrange
+            IQueryable<int> query = Enumerable.Range(1, 3).AsQueryable();
+
+            // Act
+            Action act = () => query.GetRange(new ListParametersModel(), maxPageSize);
+
+            // Assert
+            act.Should().Throw<ArgumentOutOfRangeException>();
+        }
+
+        /// <summary>
+        /// Test the ApplySort should sort by the requested field and direction.
+        /// </summary>
+        /// <param name="direction">The direction sent by the client.</param>
+        /// <param name="expected">The expected order of the IDs.</param>
+        [Theory]
+        [InlineData("asc", new long[] { 1, 2, 3 })]
+        [InlineData("DESC", new long[] { 3, 2, 1 })]
+        [InlineData("descending", new long[] { 3, 2, 1 })]
+        [InlineData("anything", new long[] { 1, 2, 3 })]
+        public void ApplySort_Pass_SortsByTheRequestedFieldAndDirection(string direction, long[] expected)
+        {
+            // Arrange
+            using DbContextFake context = Seed();
+            IListParameters parameters = new ListParametersModel();
+            parameters.Sort["age"] = direction;
+
+            // Act
+            IQueryable<EntityFake> result = context.Entities.ApplySort(parameters);
+
+            // Assert
+            result.Select(x => x.ID).Should().Equal(expected);
+        }
+
+        /// <summary>
+        /// Test the ApplySort should apply several fields in the order sent, then break ties by ID.
+        /// </summary>
+        [Fact]
+        public void ApplySort_Pass_AppliesFieldsInOrderAndBreaksTiesByID()
+        {
+            // Arrange
+            IQueryable<EntityFake> query = new List<EntityFake>
+            {
+                new() { ID = 4, Age = 1, Name = "B" },
+                new() { ID = 3, Age = 1, Name = "A" },
+                new() { ID = 2, Age = 2, Name = "A" },
+                new() { ID = 1, Age = 1, Name = "A" },
+            }.AsQueryable();
+            IListParameters parameters = new ListParametersModel
+            {
+                Sort = new Dictionary<string, string> { ["Name"] = "asc", ["Age"] = "desc" },
+            };
+
+            // Act
+            IQueryable<EntityFake> result = query.ApplySort(parameters);
+
+            // Assert
+            result.Select(x => x.ID).Should().Equal(2L, 1L, 3L, 4L);
+        }
+
+        /// <summary>
+        /// Test the ApplySort should ignore fields that are unknown or not simple values.
+        /// </summary>
+        /// <param name="field">The field sent by the client.</param>
+        [Theory]
+        [InlineData("DoesNotExist")]
+        [InlineData("Child")]
+        [InlineData("")]
+        public void ApplySort_Pass_IgnoresUnknownOrComplexFields(string field)
         {
             // Arrange
             using DbContextFake context = Seed();
             IQueryable<EntityFake> query = context.Entities.OrderBy(x => x.ID);
+            IListParameters parameters = new ListParametersModel();
+            parameters.Sort[field] = "desc";
 
             // Act
-            IQueryable<EntityFake> result = query.GetRange(null!);
+            IQueryable<EntityFake> result = query.ApplySort(parameters);
 
             // Assert
             result.Should().BeSameAs(query);
+        }
+
+        /// <summary>
+        /// Test the ApplySort should keep the caller's order when no sort is sent.
+        /// </summary>
+        [Fact]
+        public void ApplySort_Pass_KeepsTheQueryWhenThereIsNoSort()
+        {
+            // Arrange
+            using DbContextFake context = Seed();
+            IQueryable<EntityFake> query = context.Entities.OrderByDescending(x => x.ID);
+
+            // Act
+            IQueryable<EntityFake> result = query.ApplySort(new ListParametersModel());
+
+            // Assert
+            result.Should().BeSameAs(query);
+        }
+
+        /// <summary>
+        /// Test the ListPaging should reject a cap of zero or less and start at the default.
+        /// </summary>
+        [Fact]
+        public void ListPaging_Fail_RejectsANonPositiveMaxPageSize()
+        {
+            // Act
+            Action act = () => ListPaging.MaxPageSize = 0;
+
+            // Assert
+            act.Should().Throw<ArgumentOutOfRangeException>();
+            ListPaging.MaxPageSize.Should().Be(ListPaging.DefaultMaxPageSize);
         }
 
         /// <summary>
