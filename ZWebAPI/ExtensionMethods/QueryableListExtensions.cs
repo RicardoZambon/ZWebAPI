@@ -21,7 +21,7 @@ namespace ZWebAPI.ExtensionMethods
         /// <typeparam name="TDest">The list model type exposed to the exporter.</typeparam>
         /// <param name="query">The query.</param>
         /// <param name="parameters">The parameters.</param>
-        /// <param name="projection">Projects the filtered and sorted <typeparamref name="TSrc"/> query into <typeparamref name="TDest"/>, for example <c>q => q.Select(x => new Model { ... })</c> or a source-generated projection. It runs after the filters, so they can use every field of <typeparamref name="TSrc"/>.</param>
+        /// <param name="projection">Projects the filtered <typeparamref name="TSrc"/> query into <typeparamref name="TDest"/>, for example <c>q => q.Select(x => new Model { ... })</c> or a source-generated projection. It runs after the filters, so they can use every field of <typeparamref name="TSrc"/>. The sort then runs on <typeparamref name="TDest"/>.</param>
         /// <param name="listExporter">The exporter that turns the projected rows into the final file payload.</param>
         /// <param name="format">The desired file format.</param>
         /// <param name="fileBaseName">The file name without extension.</param>
@@ -44,15 +44,16 @@ namespace ZWebAPI.ExtensionMethods
             parameters.StartRow = 0;
             parameters.EndRow = int.MaxValue;
 
-            IQueryable<TSrc> filtered = query.GetRange(parameters);
-
-            int totalRows = await CountAsync(filtered);
+            // No GetRange here: an export is not a page, so the list page cap must not cut it. The
+            // export row cap below guards the size instead.
+            int totalRows = await CountAsync(query);
             if (totalRows > ExportConstants.MaxExportRows)
             {
                 throw new ExportRowLimitExceededException(ExportConstants.MaxExportRows);
             }
 
-            List<TDest> items = await ToListAsync(projection(filtered));
+            // Sort runs on the list model, so the export matches the order the client sees.
+            List<TDest> items = await ToListAsync(projection(query).ApplySort(parameters));
 
             return listExporter.Export(items, format, fileBaseName);
         }
@@ -83,15 +84,15 @@ namespace ZWebAPI.ExtensionMethods
             parameters.StartRow = 0;
             parameters.EndRow = int.MaxValue;
 
-            IQueryable<TDest> filtered = query.GetRange(parameters);
-
-            int totalRows = await CountAsync(filtered);
+            // No GetRange here: an export is not a page, so the list page cap must not cut it. The
+            // export row cap below guards the size instead.
+            int totalRows = await CountAsync(query);
             if (totalRows > ExportConstants.MaxExportRows)
             {
                 throw new ExportRowLimitExceededException(ExportConstants.MaxExportRows);
             }
 
-            List<TDest> items = await ToListAsync(filtered);
+            List<TDest> items = await ToListAsync(query.ApplySort(parameters));
 
             return listExporter.Export(items, format, fileBaseName);
         }
@@ -103,7 +104,7 @@ namespace ZWebAPI.ExtensionMethods
         /// <typeparam name="TDest">The list model type returned to the client.</typeparam>
         /// <param name="query">The query.</param>
         /// <param name="parameters">The parameters.</param>
-        /// <param name="projection">Projects the filtered and sorted <typeparamref name="TSrc"/> query into <typeparamref name="TDest"/>, for example <c>q => q.Select(x => new Model { ... })</c> or a source-generated projection. It runs after the filters, so they can use every field of <typeparamref name="TSrc"/>.</param>
+        /// <param name="projection">Projects the filtered <typeparamref name="TSrc"/> query into <typeparamref name="TDest"/>, for example <c>q => q.Select(x => new Model { ... })</c> or a source-generated projection. It runs after the filters, so they can use every field of <typeparamref name="TSrc"/>. The sort then runs on <typeparamref name="TDest"/>.</param>
         /// <returns>A <see cref="ListResult{TDest}"/> with the paginated items and the total unpaginated row count.</returns>
         /// <exception cref="ArgumentNullException">When any required argument is <c>null</c>.</exception>
         public static async Task<ListResult<TDest>> ToListResultAsync<TSrc, TDest>(
@@ -117,7 +118,8 @@ namespace ZWebAPI.ExtensionMethods
 
             int totalRows = await CountAsync(query);
 
-            List<TDest> items = await ToListAsync(projection(query.GetRange(parameters)));
+            // Sort runs on the list model, so the client sorts by the fields it sees.
+            List<TDest> items = await ToListAsync(projection(query).ApplySort(parameters).GetRange(parameters));
 
             return ListResult<TDest>.From(items, totalRows);
         }
@@ -139,7 +141,7 @@ namespace ZWebAPI.ExtensionMethods
 
             int totalRows = await CountAsync(query);
 
-            List<TDest> items = await ToListAsync(query.GetRange(parameters));
+            List<TDest> items = await ToListAsync(query.ApplySort(parameters).GetRange(parameters));
 
             return ListResult<TDest>.From(items, totalRows);
         }

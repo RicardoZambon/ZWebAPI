@@ -5,6 +5,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using ZWebAPI.Enums;
 using ZWebAPI.Interfaces;
+using ZWebAPI.Models;
 using ZWebAPI.Models.Catalog;
 
 namespace ZWebAPI.ExtensionMethods
@@ -90,25 +91,91 @@ namespace ZWebAPI.ExtensionMethods
         }
 
         /// <summary>
-        /// Get a range from a query.
+        /// Sorts a query by the fields in <see cref="IListParameters.Sort"/>.
         /// </summary>
+        /// <remarks>
+        /// Each key names a public property of <typeparamref name="TEntity"/> (case-insensitive) and
+        /// each value is <c>asc</c> or <c>desc</c>; anything other than <c>desc</c>/<c>descending</c>
+        /// sorts ascending. Keys apply in the order sent. Unknown properties and properties that are
+        /// not simple values (collections, nested objects) are ignored, so the client cannot reach
+        /// anything outside the list model. When at least one field applies, the <c>ID</c> property,
+        /// if any, is added last so pages stay stable. With no sort, the query is returned as it is,
+        /// keeping any order the caller set.
+        /// </remarks>
         /// <typeparam name="TEntity">The type of the entity.</typeparam>
         /// <param name="query">The query.</param>
         /// <param name="parameters">The parameters.</param>
+        /// <returns>The sorted query.</returns>
+        public static IQueryable<TEntity> ApplySort<TEntity>(this IQueryable<TEntity> query, IListParameters parameters)
+        {
+            ArgumentNullException.ThrowIfNull(query);
+
+            if (parameters?.Sort is not { Count: > 0 } sort)
+            {
+                return query;
+            }
+
+            IOrderedQueryable<TEntity>? ordered = null;
+            HashSet<string> sortedProperties = new(StringComparer.Ordinal);
+
+            foreach (KeyValuePair<string, string> field in sort)
+            {
+                PropertyInfo? property = FindSortableProperty<TEntity>(field.Key);
+                if (property is null || !sortedProperties.Add(property.Name))
+                {
+                    continue;
+                }
+
+                ordered = OrderByProperty(ordered ?? query, property, IsDescending(field.Value), thenBy: ordered is not null);
+            }
+
+            if (ordered is null)
+            {
+                return query;
+            }
+
+            PropertyInfo? key = FindSortableProperty<TEntity>("ID");
+            if (key is not null && sortedProperties.Add(key.Name))
+            {
+                ordered = OrderByProperty(ordered, key, descending: false, thenBy: true);
+            }
+
+            return ordered;
+        }
+
+        /// <summary>
+        /// Get a range from a query, capped at <see cref="ListPaging.MaxPageSize"/> rows.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the entity.</typeparam>
+        /// <param name="query">The query.</param>
+        /// <param name="parameters">The parameters. <see cref="IListParameters.EndRow"/> is the number of rows to take; zero or less means the cap.</param>
         /// <returns>Return the range results.</returns>
         public static IQueryable<TEntity> GetRange<TEntity>(this IQueryable<TEntity> query, IListParameters parameters)
         {
+            return query.GetRange(parameters, ListPaging.MaxPageSize);
+        }
+
+        /// <summary>
+        /// Get a range from a query, capped at <paramref name="maxPageSize"/> rows.
+        /// </summary>
+        /// <typeparam name="TEntity">The type of the entity.</typeparam>
+        /// <param name="query">The query.</param>
+        /// <param name="parameters">The parameters. <see cref="IListParameters.EndRow"/> is the number of rows to take; zero or less means the cap.</param>
+        /// <param name="maxPageSize">The most rows to return.</param>
+        /// <returns>Return the range results.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">When <paramref name="maxPageSize"/> is zero or less.</exception>
+        public static IQueryable<TEntity> GetRange<TEntity>(this IQueryable<TEntity> query, IListParameters parameters, int maxPageSize)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxPageSize);
+
             if (parameters?.StartRow > 0)
             {
                 query = query.Skip(parameters.StartRow);
             }
 
-            if (parameters?.EndRow > 0)
-            {
-                query = query.Take(parameters.EndRow);
-            }
+            int requested = parameters?.EndRow ?? 0;
 
-            return query;
+            return query.Take(requested > 0 ? Math.Min(requested, maxPageSize) : maxPageSize);
         }
 
         /// <summary>
@@ -264,6 +331,77 @@ namespace ZWebAPI.ExtensionMethods
             }
 
             return query;
+        }
+
+        private static PropertyInfo? FindSortableProperty<TEntity>(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return null;
+            }
+
+            PropertyInfo? property;
+            try
+            {
+                property = typeof(TEntity).GetProperty(name.Trim(), BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            }
+            catch (AmbiguousMatchException)
+            {
+                // Two properties differ only by case; refuse rather than guess.
+                return null;
+            }
+
+            if (property is null || !property.CanRead || property.GetIndexParameters().Length > 0)
+            {
+                return null;
+            }
+
+            return IsSortableType(property.PropertyType) ? property : null;
+        }
+
+        private static bool IsDescending(string? direction)
+        {
+            return string.Equals(direction?.Trim(), "desc", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(direction?.Trim(), "descending", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsSortableType(Type type)
+        {
+            Type underlying = Nullable.GetUnderlyingType(type) ?? type;
+
+            return underlying.IsPrimitive
+                || underlying.IsEnum
+                || underlying == typeof(string)
+                || underlying == typeof(decimal)
+                || underlying == typeof(DateTime)
+                || underlying == typeof(DateTimeOffset)
+                || underlying == typeof(DateOnly)
+                || underlying == typeof(TimeOnly)
+                || underlying == typeof(TimeSpan)
+                || underlying == typeof(Guid);
+        }
+
+        private static IOrderedQueryable<TEntity> OrderByProperty<TEntity>(IQueryable<TEntity> query, PropertyInfo property, bool descending, bool thenBy)
+        {
+            ParameterExpression parameter = Expression.Parameter(typeof(TEntity), "x");
+            LambdaExpression keySelector = Expression.Lambda(Expression.Property(parameter, property), parameter);
+
+            string methodName = (thenBy, descending) switch
+            {
+                (false, false) => nameof(Queryable.OrderBy),
+                (false, true) => nameof(Queryable.OrderByDescending),
+                (true, false) => nameof(Queryable.ThenBy),
+                (true, true) => nameof(Queryable.ThenByDescending),
+            };
+
+            MethodCallExpression call = Expression.Call(
+                typeof(Queryable),
+                methodName,
+                [typeof(TEntity), property.PropertyType],
+                query.Expression,
+                Expression.Quote(keySelector));
+
+            return (IOrderedQueryable<TEntity>)query.Provider.CreateQuery<TEntity>(call);
         }
         #endregion
     }
